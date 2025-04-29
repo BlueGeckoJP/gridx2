@@ -1,9 +1,9 @@
+use crate::MAX_DEPTH;
+use anyhow::anyhow;
+use image::{DynamicImage, ImageReader};
 use std::path;
 use std::path::Path;
-use anyhow::anyhow;
 use walkdir::WalkDir;
-use crate::MAX_DEPTH;
-use gtk4 as gtk;
 
 #[derive(Debug)]
 pub struct DirEntry {
@@ -14,7 +14,7 @@ pub struct DirEntry {
 #[derive(Debug)]
 pub struct ImageEntry {
     pub image_path: String,
-    pub image: gtk::Image,
+    pub image: DynamicImage,
 }
 
 impl DirEntry {
@@ -64,7 +64,7 @@ impl DirEntry {
                 entries.len() - 1
             };
             
-            let img = gtk::Image::from_file(entry.path());
+            let img = ImageReader::open(entry.path())?.decode()?;
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
                 image_path: entry.path().to_string_lossy().to_string(),
