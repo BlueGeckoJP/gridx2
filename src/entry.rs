@@ -63,10 +63,12 @@ impl DirEntry {
                 entries.push(DirEntry::new(parent));
                 entries.len() - 1
             };
+            
+            let img = gtk::Image::from_file(entry.path());
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
                 image_path: entry.path().to_string_lossy().to_string(),
-                image: gtk::Image::new(),
+                image: img,
             });
         }
 
