@@ -1,8 +1,10 @@
 mod entry;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
-use gtk4::prelude::{ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, Cast, FileExt, GtkApplicationExt, GtkWindowExt};
+use gtk4::prelude::{ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, Cast, FileExt, GtkApplicationExt, GtkWindowExt, WidgetExt};
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, FileDialog, Picture};
 use image::GenericImageView;
 use std::sync::{Arc, Mutex};
@@ -10,80 +12,136 @@ use std::sync::{Arc, Mutex};
 static MAX_DEPTH: u32 = 2;
 static THUMBNAIL_SIZE: u32 = 200;
 
-fn main() -> glib::ExitCode {
-    let original_dir = Arc::new(Mutex::new(String::from(".")));
+struct AppState {
+    original_dir: String,
+    dir_entries: Vec<entry::DirEntry>,
+}
 
+struct AppUI {
+    top_vbox: gtk::Box,
+}
+
+impl AppState {
+    fn new() -> Self {
+        Self {
+            original_dir: String::from("."),
+            dir_entries: Vec::new(),
+        }
+    }
+}
+
+
+fn main() -> glib::ExitCode {
     gtk::init().expect("Failed to initialize GTK");
 
     let app = Application::builder().application_id("me.bluegecko.gridx2").build();
 
-    let d = entry::DirEntry::search(original_dir.lock().unwrap().clone()).unwrap();
-    
     app.connect_activate(move |app| {
-        let window = ApplicationWindow::builder()
-            .application(app)
-            .default_width(800)
-            .default_height(600)
-            .title("gridx2")
-            .build();
+        build_ui(app);
+    });
+    
+    app.run()
+}
 
-        let menubar = gio::Menu::new();
+fn build_ui(app: &Application) {
+    let app_state = Arc::new(Mutex::new(AppState::new()));
 
-        let file_menu = gio::Menu::new();
-        file_menu.append(Some("Open Folder"), Some("app.open"));
+    let window = ApplicationWindow::builder()
+        .application(app)
+        .default_width(800)
+        .default_height(600)
+        .title("gridx2")
+        .build();
 
-        menubar.append_submenu(Some("File"), &file_menu);
+    // Build layout
+    let vbox = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+    window.set_child(Some(&vbox));
 
-        app.set_menubar(Some(&menubar));
-        window.set_show_menubar(true);
+    let app_ui = Rc::new(RefCell::new(AppUI {
+        top_vbox: vbox.clone(),
+    }));
 
-        let original_dir = original_dir.clone();
-        let open_action = gio::SimpleAction::new("open", None);
-        open_action.connect_activate(glib::clone!(
+    // Build menubar
+    let menubar = gio::Menu::new();
+
+    let file_menu = gio::Menu::new();
+    file_menu.append(Some("Open Folder"), Some("app.open"));
+
+    menubar.append_submenu(Some("File"), &file_menu);
+
+    app.set_menubar(Some(&menubar));
+    window.set_show_menubar(true);
+
+    let open_action = gio::SimpleAction::new("open", None);
+    open_action.connect_activate(glib::clone!(
             #[weak] window,
             move |_, _| {
                 let dialog = FileDialog::new();
                 let cancellable = Cancellable::new();
-                let original_dir = original_dir.clone();
+                let app_ui = app_ui.clone();
+                let app_state = app_state.clone();
                 dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
                     if let Ok(path) = result {
                         if let Some(dir) = path.path() {
-                            *original_dir.lock().unwrap() = dir.to_string_lossy().to_string();
-                            println!("{:?}", original_dir.lock().unwrap());
+                            let mut app_state_guard = app_state.lock().unwrap();
+                            app_state_guard.original_dir = dir.to_str().unwrap().to_string();
+                            let app_state = app_state.clone();
+                            glib::spawn_future_local(async move {
+                                update_entry(app_state.clone(), &app_ui.borrow().top_vbox);
+                            });
                         }
                     }
                 });
             }
         ));
-        app.add_action(&open_action);
+    app.add_action(&open_action);
 
-        let vbox = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+    // Finalize
+    window.present();
+}
 
-        d.iter().for_each(|e| {
-            let hbox = gtk::Box::builder().orientation(gtk::Orientation::Horizontal).build();
-            e.image_entries.iter().for_each(|i| {
-                let img = &i.image;
-                let rgba_img = img.to_rgba8();
-                let (width, height) = img.dimensions();
-                let bytes = glib::Bytes::from(&rgba_img.into_raw());
+fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
+    while let Some(child) = vbox.first_child() {
+        vbox.remove(&child);
+    }
 
-                let texture = gdk::MemoryTexture::new(
-                    width as i32,
-                    height as i32,
-                    gdk::MemoryFormat::R8g8b8a8,
-                    &bytes,
-                    (4 * width) as usize,
-                ).upcast::<gdk::Texture>();
-                let picture = Picture::for_paintable(&texture);
+    let app_state_guard = app_state.lock().unwrap();
+    let dir_path = app_state_guard.original_dir.clone();
+    drop(app_state_guard);
 
-                hbox.append(&picture);
-            });
-            vbox.append(&hbox);
-        });
+    let entries = entry::DirEntry::search(dir_path);
 
-        window.set_child(Some(&vbox));
-        window.present();
-    });
-    
-    app.run()
+    match entries {
+        Ok(dir_entries) => {
+            let mut app_state_guard = app_state.lock().unwrap();
+            app_state_guard.dir_entries = dir_entries;
+            let dir_entries = &app_state_guard.dir_entries;
+
+            for entry in dir_entries {
+                let hbox = gtk::Box::builder().orientation(gtk::Orientation::Horizontal).build();
+
+                for image_entry in &entry.image_entries {
+                    let img = &image_entry.image;
+                    let rgba_img = img.to_rgba8();
+                    let (width, height) = img.dimensions();
+                    let bytes = glib::Bytes::from(&rgba_img.into_raw());
+
+                    let texture = gdk::MemoryTexture::new(
+                        width as i32,
+                        height as i32,
+                        gdk::MemoryFormat::R8g8b8a8,
+                        &bytes,
+                        (4 * width) as usize,
+                    ).upcast::<gdk::Texture>();
+                    let picture = Picture::for_paintable(&texture);
+
+                    hbox.append(&picture);
+                }
+                vbox.append(&hbox);
+            }
+        },
+        Err(e) => {
+            println!("Error: {e}");
+        }
+    }
 }

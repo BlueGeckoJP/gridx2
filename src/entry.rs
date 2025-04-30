@@ -1,11 +1,11 @@
-use crate::MAX_DEPTH;
+use crate::{MAX_DEPTH, THUMBNAIL_SIZE};
 use anyhow::anyhow;
 use image::{DynamicImage, ImageReader};
 use std::path;
 use std::path::Path;
+use image::imageops::FilterType;
 use walkdir::WalkDir;
 
-#[derive(Debug)]
 pub struct DirEntry {
     pub dir_path: String,
     pub image_entries: Vec<ImageEntry>,
@@ -65,10 +65,11 @@ impl DirEntry {
             };
             
             let img = ImageReader::open(entry.path())?.decode()?;
+            let resized = img.resize(THUMBNAIL_SIZE, u32::MAX, FilterType::Lanczos3);
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
                 image_path: entry.path().to_string_lossy().to_string(),
-                image: img,
+                image: resized,
             });
         }
 
