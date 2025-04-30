@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
-gtk4 = "0.9.6"
+gtk4 = { version = "0.9.6", features = ["v4_10"] }
 image = "0.25.6"
 walkdir = "2.5.0"
