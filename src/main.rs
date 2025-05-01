@@ -4,6 +4,7 @@ mod image_widget;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::image_widget::ImageWidget;
+use anyhow::Result;
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
 use gtk4::prelude::{
@@ -12,6 +13,7 @@ use gtk4::prelude::{
 };
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -99,7 +101,8 @@ fn build_ui(app: &Application) {
                         app_state_guard.original_dir = dir.to_str().unwrap().to_string();
                         let app_state = app_state.clone();
                         glib::spawn_future_local(async move {
-                            update_entry(app_state.clone(), &app_ui.borrow().top_vbox);
+                            update_entry(app_state.clone(), &app_ui.borrow().top_vbox)
+                                .expect("Failed to update entry");
                         });
                     }
                 }
@@ -121,12 +124,14 @@ fn build_ui(app: &Application) {
     window.present();
 }
 
-fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
+fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> {
     while let Some(child) = vbox.first_child() {
         vbox.remove(&child);
     }
 
-    let app_state_guard = app_state.lock().unwrap();
+    let app_state_guard = app_state
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
     let dir_path = app_state_guard.original_dir.clone();
     drop(app_state_guard);
 
@@ -134,12 +139,16 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
 
     match entries {
         Ok(dir_entries) => {
-            let mut app_state_guard = app_state.lock().unwrap();
+            let mut app_state_guard = app_state
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
             app_state_guard.dir_entries = dir_entries;
             let dir_entries = &app_state_guard.dir_entries;
 
             for entry in dir_entries {
-                let accordion_widget = AccordionWidget::new("A");
+                let accordion_widget = AccordionWidget::new(
+                    get_relative_path(&app_state_guard.original_dir, &entry.dir_path)?.as_str(),
+                );
 
                 for image_entry in &entry.image_entries {
                     let mut image_widget = ImageWidget::new();
@@ -159,9 +168,12 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                 }
                 vbox.append(&accordion_widget.widget);
             }
+
+            Ok(())
         }
         Err(e) => {
             println!("Error: {e}");
+            Err(e)
         }
     }
 }
@@ -175,4 +187,22 @@ fn load_css() {
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+}
+
+fn get_relative_path(base_path: &str, path: &str) -> Result<String> {
+    let base_path = Path::new(base_path).canonicalize()?;
+    let path = Path::new(path).canonicalize()?;
+    let relative_path = path.strip_prefix(&base_path)?;
+    let relative_path = relative_path.to_str().ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to convert path to string: {:?}",
+            relative_path.to_str()
+        )
+    })?;
+
+    if relative_path.is_empty() {
+        return Ok(String::from("."));
+    }
+
+    Ok(relative_path.to_string())
 }
