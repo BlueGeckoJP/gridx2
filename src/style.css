@@ -1,10 +1,6 @@
-expander {
+.expander-box {
     background-color: #474747;
     padding: 4px;
-}
-
-flowbox {
-    background-color: #474747;
 }
 
 .expander-title {
