@@ -10,7 +10,7 @@ use gtk4::prelude::{
     ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt,
     GtkApplicationExt, GtkWindowExt, WidgetExt,
 };
-use gtk4::{gio, glib, Application, ApplicationWindow, FileDialog};
+use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -51,6 +51,8 @@ fn main() -> glib::ExitCode {
 }
 
 fn build_ui(app: &Application) {
+    load_css();
+
     let app_state = Arc::new(Mutex::new(AppState::new()));
 
     let window = ApplicationWindow::builder()
@@ -63,6 +65,7 @@ fn build_ui(app: &Application) {
     // Build layout
     let vbox = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
+        .spacing(5)
         .build();
 
     let app_ui = Rc::new(RefCell::new(AppUI {
@@ -161,4 +164,15 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
             println!("Error: {e}");
         }
     }
+}
+
+fn load_css() {
+    let provider = CssProvider::new();
+    provider.load_from_data(include_str!("style.css"));
+
+    gtk::style_context_add_provider_for_display(
+        &gdk::Display::default().expect("Failed to get display"),
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
 }

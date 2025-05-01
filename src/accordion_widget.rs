@@ -26,8 +26,10 @@ impl AccordionWidget {
         flow_box.set_margin_start(10);
         flow_box.set_margin_end(10);
 
+        expander.add_css_class("grey-background");
+
         expander.set_child(Some(&flow_box));
-        expander.set_expanded(true);
+        expander.set_expanded(false);
 
         Self {
             widget: expander,
