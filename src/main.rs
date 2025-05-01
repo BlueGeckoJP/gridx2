@@ -14,6 +14,7 @@ use gtk4::prelude::{
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
 use std::cell::RefCell;
 use std::path::Path;
+use std::process::Command;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -205,4 +206,11 @@ fn get_relative_path(base_path: &str, path: &str) -> Result<String> {
     }
 
     Ok(relative_path.to_string())
+}
+
+fn open_with_xdg_open(image_path: String) {
+    let child = Command::new("xdg-open").arg(image_path).spawn();
+    if let Err(e) = child {
+        println!("Failed to open image with xdg-open: {e}");
+    }
 }
