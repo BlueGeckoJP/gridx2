@@ -68,7 +68,20 @@ impl DirEntry {
                     entries.len() - 1
                 };
 
-            let img = ImageReader::open(entry.path())?.decode()?;
+            entries[dir_entries_index].image_entries.push(ImageEntry {
+                image_path: entry.path().to_string_lossy().to_string(),
+                image: None,
+            });
+        }
+
+        entries.retain(|e| !e.image_entries.is_empty());
+
+        Ok(entries)
+    }
+
+    pub fn load_images(&mut self) -> anyhow::Result<()> {
+        for entry in &mut self.image_entries {
+            let img = ImageReader::open(&entry.image_path)?.decode()?;
             let (width, height) = img.dimensions();
             let (rw, rh) = calculate_size(width, height, THUMBNAIL_SIZE);
             let resized = img.resize(rw, rh, FilterType::Lanczos3);
@@ -83,15 +96,10 @@ impl DirEntry {
             )
             .upcast::<Texture>();
 
-            entries[dir_entries_index].image_entries.push(ImageEntry {
-                image_path: entry.path().to_string_lossy().to_string(),
-                image: Some(texture),
-            });
+            entry.image = Some(texture);
         }
 
-        entries.retain(|e| !e.image_entries.is_empty());
-
-        Ok(entries)
+        Ok(())
     }
 }
 

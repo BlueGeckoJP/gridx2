@@ -144,11 +144,17 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                 .lock()
                 .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
             app_state_guard.dir_entries = dir_entries;
-            let dir_entries = &app_state_guard.dir_entries;
+            let original_dir = app_state_guard.original_dir.clone();
+            let dir_entries = &mut app_state_guard.dir_entries;
 
             for entry in dir_entries {
+                if let Err(e) = entry.load_images() {
+                    println!("Failed to load images: {e}");
+                    continue;
+                }
+
                 let accordion_widget = AccordionWidget::new(
-                    get_relative_path(&app_state_guard.original_dir, &entry.dir_path)?.as_str(),
+                    get_relative_path(&original_dir, &entry.dir_path)?.as_str(),
                 );
 
                 for image_entry in &entry.image_entries {
