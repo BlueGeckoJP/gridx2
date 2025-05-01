@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 pub struct ImageWidget {
     widget: gtk::Box,
-    picture: gtk::Picture,
+    picture: Picture,
     image_path: Rc<RefCell<Option<String>>>,
 }
 

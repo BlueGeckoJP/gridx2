@@ -1,9 +1,12 @@
 use crate::{MAX_DEPTH, THUMBNAIL_SIZE};
 use anyhow::anyhow;
-use image::{DynamicImage, ImageReader};
+use gtk4::gdk::Texture;
+use gtk4::prelude::Cast;
+use gtk4::{gdk, glib};
+use image::imageops::FilterType;
+use image::ImageReader;
 use std::path;
 use std::path::Path;
-use image::imageops::FilterType;
 use walkdir::WalkDir;
 
 pub struct DirEntry {
@@ -14,7 +17,7 @@ pub struct DirEntry {
 #[derive(Debug)]
 pub struct ImageEntry {
     pub image_path: String,
-    pub image: DynamicImage,
+    pub image: Texture,
 }
 
 impl DirEntry {
@@ -66,10 +69,19 @@ impl DirEntry {
             
             let img = ImageReader::open(entry.path())?.decode()?;
             let resized = img.resize(THUMBNAIL_SIZE, u32::MAX, FilterType::Lanczos3);
+            let rgba = resized.to_rgba8();
+            let (width, height) = rgba.dimensions();
+            let texture = gdk::MemoryTexture::new(
+                width as i32,
+                height as i32,
+                gdk::MemoryFormat::R8g8b8a8,
+                &glib::Bytes::from(&rgba.into_raw()),
+                (4 * width) as usize,
+            ).upcast::<Texture>();
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
                 image_path: entry.path().to_string_lossy().to_string(),
-                image: resized,
+                image: texture,
             });
         }
 

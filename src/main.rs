@@ -4,9 +4,8 @@ mod image_widget;
 use crate::image_widget::ImageWidget;
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
-use gtk4::prelude::{ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, Cast, FileExt, GtkApplicationExt, GtkWindowExt, WidgetExt};
-use gtk4::{gdk, gio, glib, Application, ApplicationWindow, FileDialog};
-use image::GenericImageView;
+use gtk4::prelude::{ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt, GtkApplicationExt, GtkWindowExt, WidgetExt};
+use gtk4::{gio, glib, Application, ApplicationWindow, FileDialog};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -123,21 +122,8 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                 let hbox = gtk::Box::builder().orientation(gtk::Orientation::Horizontal).build();
 
                 for image_entry in &entry.image_entries {
-                    let img = &image_entry.image;
-                    let rgba_img = img.to_rgba8();
-                    let (width, height) = img.dimensions();
-                    let bytes = glib::Bytes::from(&rgba_img.into_raw());
-
-                    let texture = gdk::MemoryTexture::new(
-                        width as i32,
-                        height as i32,
-                        gdk::MemoryFormat::R8g8b8a8,
-                        &bytes,
-                        (4 * width) as usize,
-                    ).upcast::<gdk::Texture>();
-
                     let mut image_widget = ImageWidget::new();
-                    image_widget.set_image(&image_entry.image_path, texture);
+                    image_widget.set_image(&image_entry.image_path, image_entry.image.clone());
                     hbox.append(image_widget.widget());
                 }
                 vbox.append(&hbox);
