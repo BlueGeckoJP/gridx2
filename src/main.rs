@@ -1,16 +1,19 @@
+mod accordion_widget;
 mod entry;
 mod image_widget;
-mod accordion_widget;
 
+use crate::accordion_widget::AccordionWidget;
 use crate::image_widget::ImageWidget;
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
-use gtk4::prelude::{ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt, GtkApplicationExt, GtkWindowExt, WidgetExt};
+use gtk4::prelude::{
+    ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt,
+    GtkApplicationExt, GtkWindowExt, WidgetExt,
+};
 use gtk4::{gio, glib, Application, ApplicationWindow, FileDialog};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use crate::accordion_widget::AccordionWidget;
 
 static MAX_DEPTH: u32 = 2;
 static THUMBNAIL_SIZE: u32 = 200;
@@ -33,16 +36,17 @@ impl AppState {
     }
 }
 
-
 fn main() -> glib::ExitCode {
     gtk::init().expect("Failed to initialize GTK");
 
-    let app = Application::builder().application_id("me.bluegecko.gridx2").build();
+    let app = Application::builder()
+        .application_id("me.bluegecko.gridx2")
+        .build();
 
     app.connect_activate(move |app| {
         build_ui(app);
     });
-    
+
     app.run()
 }
 
@@ -57,8 +61,9 @@ fn build_ui(app: &Application) {
         .build();
 
     // Build layout
-    let vbox = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
-    window.set_child(Some(&vbox));
+    let vbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .build();
 
     let app_ui = Rc::new(RefCell::new(AppUI {
         top_vbox: vbox.clone(),
@@ -77,27 +82,37 @@ fn build_ui(app: &Application) {
 
     let open_action = gio::SimpleAction::new("open", None);
     open_action.connect_activate(glib::clone!(
-            #[weak] window,
-            move |_, _| {
-                let dialog = FileDialog::new();
-                let cancellable = Cancellable::new();
-                let app_ui = app_ui.clone();
-                let app_state = app_state.clone();
-                dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
-                    if let Ok(path) = result {
-                        if let Some(dir) = path.path() {
-                            let mut app_state_guard = app_state.lock().unwrap();
-                            app_state_guard.original_dir = dir.to_str().unwrap().to_string();
-                            let app_state = app_state.clone();
-                            glib::spawn_future_local(async move {
-                                update_entry(app_state.clone(), &app_ui.borrow().top_vbox);
-                            });
-                        }
+        #[weak]
+        window,
+        move |_, _| {
+            let dialog = FileDialog::new();
+            let cancellable = Cancellable::new();
+            let app_ui = app_ui.clone();
+            let app_state = app_state.clone();
+            dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
+                if let Ok(path) = result {
+                    if let Some(dir) = path.path() {
+                        let mut app_state_guard = app_state.lock().unwrap();
+                        app_state_guard.original_dir = dir.to_str().unwrap().to_string();
+                        let app_state = app_state.clone();
+                        glib::spawn_future_local(async move {
+                            update_entry(app_state.clone(), &app_ui.borrow().top_vbox);
+                        });
                     }
-                });
-            }
-        ));
+                }
+            });
+        }
+    ));
     app.add_action(&open_action);
+
+    // Build a scrollable window
+    let scrollable_window = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .vscrollbar_policy(gtk::PolicyType::Automatic)
+        .child(&vbox)
+        .build();
+
+    window.set_child(Some(&scrollable_window));
 
     // Finalize
     window.present();
@@ -128,7 +143,8 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                     image_widget.set_image(&image_entry.image_path, image_entry.image.clone());
 
                     let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                    fixed_size_container.set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
+                    fixed_size_container
+                        .set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
                     fixed_size_container.set_halign(gtk::Align::Center);
                     fixed_size_container.set_valign(gtk::Align::Center);
 
@@ -140,7 +156,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                 }
                 vbox.append(&accordion_widget.widget);
             }
-        },
+        }
         Err(e) => {
             println!("Error: {e}");
         }
