@@ -1,12 +1,14 @@
 mod entry;
+mod image_widget;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::image_widget::ImageWidget;
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
 use gtk4::prelude::{ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, Cast, FileExt, GtkApplicationExt, GtkWindowExt, WidgetExt};
-use gtk4::{gdk, gio, glib, Application, ApplicationWindow, FileDialog, Picture};
+use gtk4::{gdk, gio, glib, Application, ApplicationWindow, FileDialog};
 use image::GenericImageView;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 static MAX_DEPTH: u32 = 2;
@@ -133,9 +135,10 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                         &bytes,
                         (4 * width) as usize,
                     ).upcast::<gdk::Texture>();
-                    let picture = Picture::for_paintable(&texture);
 
-                    hbox.append(&picture);
+                    let mut image_widget = ImageWidget::new();
+                    image_widget.set_image(&image_entry.image_path, texture);
+                    hbox.append(image_widget.widget());
                 }
                 vbox.append(&hbox);
             }
