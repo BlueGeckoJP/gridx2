@@ -17,7 +17,7 @@ pub struct DirEntry {
 #[derive(Debug)]
 pub struct ImageEntry {
     pub image_path: String,
-    pub image: Texture,
+    pub image: Option<Texture>,
 }
 
 impl DirEntry {
@@ -60,13 +60,14 @@ impl DirEntry {
                 .to_string_lossy()
                 .to_string();
 
-            let dir_entries_index = if let Some(index) = entries.iter().position(|e| e.dir_path == parent) {
-                index
-            } else {
-                entries.push(DirEntry::new(parent));
-                entries.len() - 1
-            };
-            
+            let dir_entries_index =
+                if let Some(index) = entries.iter().position(|e| e.dir_path == parent) {
+                    index
+                } else {
+                    entries.push(DirEntry::new(parent));
+                    entries.len() - 1
+                };
+
             let img = ImageReader::open(entry.path())?.decode()?;
             let (width, height) = img.dimensions();
             let (rw, rh) = calculate_size(width, height, THUMBNAIL_SIZE);
@@ -79,11 +80,12 @@ impl DirEntry {
                 gdk::MemoryFormat::R8g8b8a8,
                 &glib::Bytes::from(&rgba.into_raw()),
                 (4 * width) as usize,
-            ).upcast::<Texture>();
+            )
+            .upcast::<Texture>();
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
                 image_path: entry.path().to_string_lossy().to_string(),
-                image: texture,
+                image: Some(texture),
             });
         }
 
@@ -94,7 +96,10 @@ impl DirEntry {
 }
 
 fn count_depth<T: ToString>(path: T) -> u32 {
-    path.to_string().chars().filter(|&c| c == path::MAIN_SEPARATOR).count() as u32
+    path.to_string()
+        .chars()
+        .filter(|&c| c == path::MAIN_SEPARATOR)
+        .count() as u32
 }
 
 fn to_absolute<T: AsRef<Path>>(path: T) -> anyhow::Result<String> {
@@ -117,7 +122,7 @@ fn calculate_size(mut width: u32, mut height: u32, to: u32) -> (u32, u32) {
             height = (height * to) / width;
             width = to;
             (width, height)
-        },
+        }
         false => {
             width = (width * to) / height;
             height = to;
