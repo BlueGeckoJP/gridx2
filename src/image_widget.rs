@@ -1,7 +1,6 @@
-use crate::THUMBNAIL_SIZE;
 use gtk4 as gtk;
 use gtk4::gdk::Texture;
-use gtk4::prelude::{BoxExt, WidgetExt};
+use gtk4::prelude::{BoxExt, TextureExt, WidgetExt};
 use gtk4::Picture;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -19,7 +18,6 @@ impl ImageWidget {
         widget.set_valign(gtk::Align::Center);
         
         let picture = Picture::new();
-        picture.set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
         picture.set_halign(gtk::Align::Center);
         picture.set_valign(gtk::Align::Center);
         
@@ -52,6 +50,7 @@ impl ImageWidget {
     
     pub fn set_image(&mut self, path: &str, texture: Texture) {
         self.picture.set_paintable(Some(&texture));
+        self.picture.set_size_request(texture.width(), texture.height());
         self.image_path.replace(Some(path.to_string()));
     }
     
