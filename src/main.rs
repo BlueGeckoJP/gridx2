@@ -1,5 +1,6 @@
 mod entry;
 mod image_widget;
+mod accordion_widget;
 
 use crate::image_widget::ImageWidget;
 use gtk4 as gtk;
@@ -9,6 +10,7 @@ use gtk4::{gio, glib, Application, ApplicationWindow, FileDialog};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use crate::accordion_widget::AccordionWidget;
 
 static MAX_DEPTH: u32 = 2;
 static THUMBNAIL_SIZE: u32 = 200;
@@ -119,7 +121,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
             let dir_entries = &app_state_guard.dir_entries;
 
             for entry in dir_entries {
-                let hbox = gtk::Box::builder().orientation(gtk::Orientation::Horizontal).build();
+                let accordion_widget = AccordionWidget::new("A");
 
                 for image_entry in &entry.image_entries {
                     let mut image_widget = ImageWidget::new();
@@ -133,10 +135,10 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                     let overlay = gtk::Overlay::new();
                     overlay.set_child(Some(&fixed_size_container));
                     overlay.add_overlay(image_widget.widget());
-                    
-                    hbox.append(&overlay);
+
+                    accordion_widget.flow_box.append(&overlay);
                 }
-                vbox.append(&hbox);
+                vbox.append(&accordion_widget.widget);
             }
         },
         Err(e) => {
