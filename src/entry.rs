@@ -4,7 +4,7 @@ use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
 use image::imageops::FilterType;
-use image::ImageReader;
+use image::{GenericImageView, ImageReader};
 use std::path;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -68,7 +68,9 @@ impl DirEntry {
             };
             
             let img = ImageReader::open(entry.path())?.decode()?;
-            let resized = img.resize(THUMBNAIL_SIZE, u32::MAX, FilterType::Lanczos3);
+            let (width, height) = img.dimensions();
+            let (rw, rh) = calculate_size(width, height, THUMBNAIL_SIZE);
+            let resized = img.resize(rw, rh, FilterType::Lanczos3);
             let rgba = resized.to_rgba8();
             let (width, height) = rgba.dimensions();
             let texture = gdk::MemoryTexture::new(
@@ -106,5 +108,20 @@ fn is_image<T: AsRef<Path>>(path: T) -> bool {
         supported_extensions.contains(&ext.to_string_lossy().to_string())
     } else {
         false
+    }
+}
+
+fn calculate_size(mut width: u32, mut height: u32, to: u32) -> (u32, u32) {
+    match width > height {
+        true => {
+            height = (height * to) / width;
+            width = to;
+            (width, height)
+        },
+        false => {
+            width = (width * to) / height;
+            height = to;
+            (width, height)
+        }
     }
 }
