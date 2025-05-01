@@ -1,6 +1,6 @@
 use gtk4 as gtk;
 use gtk4::prelude::WidgetExt;
-use gtk4::{Expander, FlowBox};
+use gtk4::{Expander, FlowBox, Label};
 
 pub struct AccordionWidget {
     pub widget: Expander,
@@ -9,7 +9,12 @@ pub struct AccordionWidget {
 
 impl AccordionWidget {
     pub fn new(title: &str) -> Self {
-        let expander = Expander::new(Some(title));
+        let expander = Expander::new(None);
+
+        let label = Label::new(Some(title));
+        label.add_css_class("expander-title");
+
+        expander.set_label_widget(Some(&label));
 
         let flow_box = FlowBox::new();
 
@@ -18,15 +23,9 @@ impl AccordionWidget {
         flow_box.set_selection_mode(gtk::SelectionMode::None);
         flow_box.set_homogeneous(false);
         flow_box.set_min_children_per_line(1);
-        flow_box.set_row_spacing(10);
-        flow_box.set_column_spacing(10);
 
-        flow_box.set_margin_top(10);
-        flow_box.set_margin_bottom(10);
-        flow_box.set_margin_start(10);
-        flow_box.set_margin_end(10);
-
-        expander.add_css_class("grey-background");
+        flow_box.set_row_spacing(8);
+        flow_box.set_column_spacing(8);
 
         expander.set_child(Some(&flow_box));
         expander.set_expanded(false);
