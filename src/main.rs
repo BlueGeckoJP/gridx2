@@ -124,7 +124,17 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) {
                 for image_entry in &entry.image_entries {
                     let mut image_widget = ImageWidget::new();
                     image_widget.set_image(&image_entry.image_path, image_entry.image.clone());
-                    hbox.append(image_widget.widget());
+
+                    let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                    fixed_size_container.set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
+                    fixed_size_container.set_halign(gtk::Align::Center);
+                    fixed_size_container.set_valign(gtk::Align::Center);
+
+                    let overlay = gtk::Overlay::new();
+                    overlay.set_child(Some(&fixed_size_container));
+                    overlay.add_overlay(image_widget.widget());
+                    
+                    hbox.append(&overlay);
                 }
                 vbox.append(&hbox);
             }
