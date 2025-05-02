@@ -145,37 +145,65 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                 .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
             app_state_guard.dir_entries = dir_entries;
             let original_dir = app_state_guard.original_dir.clone();
-            let dir_entries = &mut app_state_guard.dir_entries;
+            let dir_entries = app_state_guard.dir_entries.clone();
+            drop(app_state_guard);
 
-            for entry in dir_entries {
-                if let Err(e) = entry.load_images() {
-                    println!("Failed to load images: {e}");
-                    continue;
-                }
+            for (index, entry) in dir_entries.iter().enumerate() {
+                let rel_path = get_relative_path(&original_dir, &entry.dir_path)?;
+                let accordion_widget =
+                    Rc::new(RefCell::new(AccordionWidget::new(rel_path.as_str())));
+                vbox.append(&accordion_widget.borrow().widget);
 
-                let accordion_widget = AccordionWidget::new(
-                    get_relative_path(&original_dir, &entry.dir_path)?.as_str(),
-                );
+                let app_state_clone = app_state.clone();
+                accordion_widget
+                    .clone()
+                    .borrow()
+                    .connect_expanded(move |is_expanded| {
+                        let index = index;
+                        if is_expanded {
+                            let app_state_clone = app_state_clone.clone();
+                            let accordion_widget = accordion_widget.clone();
+                            glib::spawn_future_local(async move {
+                                let index = index;
+                                let app_state_clone = app_state_clone.lock();
+                                if let Ok(app) = app_state_clone {
+                                    let mut dir_entry = app.dir_entries.clone()[index].clone();
+                                    if let Err(e) = dir_entry.load_images() {
+                                        println!("Failed to load images: {e}");
+                                    }
 
-                for image_entry in &entry.image_entries {
-                    if let Some(img) = image_entry.image.clone() {
-                        let mut image_widget = ImageWidget::new();
-                        image_widget.set_image(&image_entry.image_path, img);
+                                    for image_entry in &dir_entry.image_entries {
+                                        if let Some(img) = image_entry.image.clone() {
+                                            let mut image_widget = ImageWidget::new();
+                                            image_widget.set_image(&image_entry.image_path, img);
 
-                        let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                        fixed_size_container
-                            .set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
-                        fixed_size_container.set_halign(gtk::Align::Center);
-                        fixed_size_container.set_valign(gtk::Align::Center);
+                                            let fixed_size_container =
+                                                gtk::Box::new(gtk::Orientation::Vertical, 0);
+                                            fixed_size_container.set_size_request(
+                                                THUMBNAIL_SIZE as i32,
+                                                THUMBNAIL_SIZE as i32,
+                                            );
+                                            fixed_size_container.set_halign(gtk::Align::Center);
+                                            fixed_size_container.set_valign(gtk::Align::Center);
 
-                        let overlay = gtk::Overlay::new();
-                        overlay.set_child(Some(&fixed_size_container));
-                        overlay.add_overlay(image_widget.widget());
+                                            let overlay = gtk::Overlay::new();
+                                            overlay.set_child(Some(&fixed_size_container));
+                                            overlay.add_overlay(image_widget.widget());
 
-                        accordion_widget.flow_box.append(&overlay);
-                    }
-                }
-                vbox.append(&accordion_widget.widget);
+                                            let accordion_widget = accordion_widget.clone();
+
+                                            glib::MainContext::default().spawn_local(async move {
+                                                accordion_widget
+                                                    .borrow_mut()
+                                                    .flow_box
+                                                    .append(&overlay);
+                                            });
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    });
             }
 
             Ok(())

@@ -9,12 +9,13 @@ use std::path;
 use std::path::Path;
 use walkdir::WalkDir;
 
+#[derive(Debug, Clone)]
 pub struct DirEntry {
     pub dir_path: String,
     pub image_entries: Vec<ImageEntry>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImageEntry {
     pub image_path: String,
     pub image: Option<Texture>,
@@ -81,22 +82,24 @@ impl DirEntry {
 
     pub fn load_images(&mut self) -> anyhow::Result<()> {
         for entry in &mut self.image_entries {
-            let img = ImageReader::open(&entry.image_path)?.decode()?;
-            let (width, height) = img.dimensions();
-            let (rw, rh) = calculate_size(width, height, THUMBNAIL_SIZE);
-            let resized = img.resize(rw, rh, FilterType::Lanczos3);
-            let rgba = resized.to_rgba8();
-            let (width, height) = rgba.dimensions();
-            let texture = gdk::MemoryTexture::new(
-                width as i32,
-                height as i32,
-                gdk::MemoryFormat::R8g8b8a8,
-                &glib::Bytes::from(&rgba.into_raw()),
-                (4 * width) as usize,
-            )
-            .upcast::<Texture>();
+            if entry.image.is_none() {
+                let img = ImageReader::open(&entry.image_path)?.decode()?;
+                let (width, height) = img.dimensions();
+                let (rw, rh) = calculate_size(width, height, THUMBNAIL_SIZE);
+                let resized = img.resize(rw, rh, FilterType::Lanczos3);
+                let rgba = resized.to_rgba8();
+                let (width, height) = rgba.dimensions();
+                let texture = gdk::MemoryTexture::new(
+                    width as i32,
+                    height as i32,
+                    gdk::MemoryFormat::R8g8b8a8,
+                    &glib::Bytes::from(&rgba.into_raw()),
+                    (4 * width) as usize,
+                )
+                .upcast::<Texture>();
 
-            entry.image = Some(texture);
+                entry.image = Some(texture);
+            }
         }
 
         Ok(())
