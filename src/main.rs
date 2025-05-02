@@ -130,75 +130,98 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
         vbox.remove(&child);
     }
 
-    let app_state_guard = app_state
-        .lock()
-        .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
-    let dir_path = app_state_guard.original_dir.clone();
-    drop(app_state_guard);
+    let dir_path = {
+        let app_state_guard = app_state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
+        app_state_guard.original_dir.clone()
+    };
 
     let entries = entry::DirEntry::search(dir_path);
 
     match entries {
         Ok(dir_entries) => {
-            let mut app_state_guard = app_state
-                .lock()
-                .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
-            app_state_guard.dir_entries = dir_entries;
-            let original_dir = app_state_guard.original_dir.clone();
-            let dir_entries = app_state_guard.dir_entries.clone();
-            drop(app_state_guard);
+            let (original_dir, entries_indies) = {
+                let mut app_state_guard = app_state
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
 
-            for (index, entry) in dir_entries.iter().enumerate() {
+                app_state_guard.dir_entries = dir_entries;
+
+                let original_dir = app_state_guard.original_dir.clone();
+                let dir_entries = app_state_guard.dir_entries.clone();
+
+                (original_dir, dir_entries)
+            };
+
+            for (index, entry) in entries_indies.iter().enumerate() {
                 let rel_path = get_relative_path(&original_dir, &entry.dir_path)?;
                 let accordion_widget =
                     Rc::new(RefCell::new(AccordionWidget::new(rel_path.as_str())));
                 vbox.append(&accordion_widget.borrow().widget);
 
                 let app_state_clone = app_state.clone();
+
                 accordion_widget
                     .clone()
                     .borrow()
                     .connect_expanded(move |is_expanded| {
-                        let index = index;
                         if is_expanded {
                             let app_state_clone = app_state_clone.clone();
                             let accordion_widget = accordion_widget.clone();
+
+                            while let Some(child) = accordion_widget.borrow().flow_box.first_child()
+                            {
+                                accordion_widget.borrow().flow_box.remove(&child);
+                            }
+
                             glib::spawn_future_local(async move {
-                                let index = index;
-                                let app_state_clone = app_state_clone.lock();
-                                if let Ok(app) = app_state_clone {
-                                    let mut dir_entry = app.dir_entries.clone()[index].clone();
-                                    if let Err(e) = dir_entry.load_images() {
-                                        println!("Failed to load images: {e}");
-                                    }
+                                let dir_entry_clone = {
+                                    match app_state_clone.lock() {
+                                        Ok(app) => {
+                                            if index >= app.dir_entries.len() {
+                                                eprintln!("Invalid index: {index}");
+                                                return;
+                                            }
 
-                                    for image_entry in &dir_entry.image_entries {
-                                        if let Some(img) = image_entry.image.clone() {
-                                            let mut image_widget = ImageWidget::new();
-                                            image_widget.set_image(&image_entry.image_path, img);
-
-                                            let fixed_size_container =
-                                                gtk::Box::new(gtk::Orientation::Vertical, 0);
-                                            fixed_size_container.set_size_request(
-                                                THUMBNAIL_SIZE as i32,
-                                                THUMBNAIL_SIZE as i32,
-                                            );
-                                            fixed_size_container.set_halign(gtk::Align::Center);
-                                            fixed_size_container.set_valign(gtk::Align::Center);
-
-                                            let overlay = gtk::Overlay::new();
-                                            overlay.set_child(Some(&fixed_size_container));
-                                            overlay.add_overlay(image_widget.widget());
-
-                                            let accordion_widget = accordion_widget.clone();
-
-                                            glib::MainContext::default().spawn_local(async move {
-                                                accordion_widget
-                                                    .borrow_mut()
-                                                    .flow_box
-                                                    .append(&overlay);
-                                            });
+                                            app.dir_entries.clone()[index].clone()
                                         }
+                                        Err(e) => {
+                                            eprintln!("Failed to lock app state: {e}");
+                                            return;
+                                        }
+                                    }
+                                };
+
+                                let mut loaded_entry = dir_entry_clone;
+                                if let Err(e) = loaded_entry.load_images() {
+                                    eprintln!("Failed to load images: {e}");
+                                    return;
+                                }
+
+                                for image_entry in &loaded_entry.image_entries {
+                                    if let Some(img) = &image_entry.image {
+                                        let mut image_widget = ImageWidget::new();
+                                        image_widget
+                                            .set_image(&image_entry.image_path, img.clone());
+
+                                        let fixed_size_container =
+                                            gtk::Box::new(gtk::Orientation::Vertical, 0);
+                                        fixed_size_container.set_size_request(
+                                            THUMBNAIL_SIZE as i32,
+                                            THUMBNAIL_SIZE as i32,
+                                        );
+                                        fixed_size_container.set_halign(gtk::Align::Center);
+                                        fixed_size_container.set_valign(gtk::Align::Center);
+
+                                        let overlay = gtk::Overlay::new();
+                                        overlay.set_child(Some(&fixed_size_container));
+                                        overlay.add_overlay(image_widget.widget());
+
+                                        let accordion_widget = accordion_widget.clone();
+                                        glib::MainContext::default().spawn_local(async move {
+                                            accordion_widget.borrow_mut().flow_box.append(&overlay);
+                                        });
                                     }
                                 }
                             });
