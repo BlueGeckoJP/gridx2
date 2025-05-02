@@ -158,6 +158,22 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                 let rel_path = get_relative_path(&original_dir, &entry.dir_path)?;
                 let accordion_widget =
                     Rc::new(RefCell::new(AccordionWidget::new(rel_path.as_str())));
+                let mut overlays = Vec::new();
+
+                for _ in 0..entry.image_entries.len() {
+                    let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                    fixed_size_container
+                        .set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
+                    fixed_size_container.set_halign(gtk::Align::Center);
+                    fixed_size_container.set_valign(gtk::Align::Center);
+
+                    let overlay = gtk::Overlay::new();
+                    overlay.set_child(Some(&fixed_size_container));
+
+                    accordion_widget.borrow_mut().flow_box.append(&overlay);
+                    overlays.push(overlay);
+                }
+
                 vbox.append(&accordion_widget.borrow().widget);
 
                 let app_state_clone = app_state.clone();
@@ -169,6 +185,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                         if is_expanded {
                             let app_state_clone = app_state_clone.clone();
                             let accordion_widget = accordion_widget.clone();
+                            let overlays = overlays.clone();
 
                             while let Some(child) = accordion_widget.borrow().flow_box.first_child()
                             {
@@ -199,27 +216,19 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                     return;
                                 }
 
-                                for image_entry in &loaded_entry.image_entries {
+                                for (index, image_entry) in
+                                    loaded_entry.image_entries.iter().enumerate()
+                                {
                                     if let Some(img) = &image_entry.image {
                                         let mut image_widget = ImageWidget::new();
                                         image_widget
                                             .set_image(&image_entry.image_path, img.clone());
 
-                                        let fixed_size_container =
-                                            gtk::Box::new(gtk::Orientation::Vertical, 0);
-                                        fixed_size_container.set_size_request(
-                                            THUMBNAIL_SIZE as i32,
-                                            THUMBNAIL_SIZE as i32,
-                                        );
-                                        fixed_size_container.set_halign(gtk::Align::Center);
-                                        fixed_size_container.set_valign(gtk::Align::Center);
-
-                                        let overlay = gtk::Overlay::new();
-                                        overlay.set_child(Some(&fixed_size_container));
-                                        overlay.add_overlay(image_widget.widget());
-
                                         let accordion_widget = accordion_widget.clone();
+                                        let overlays = overlays.clone();
                                         glib::MainContext::default().spawn_local(async move {
+                                            let overlay = overlays[index].clone();
+                                            overlay.add_overlay(image_widget.widget());
                                             accordion_widget.borrow_mut().flow_box.append(&overlay);
                                         });
                                     }
