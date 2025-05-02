@@ -1,9 +1,10 @@
 use gtk4 as gtk;
-use gtk4::prelude::{BoxExt, WidgetExt};
+use gtk4::prelude::{BoxExt, ObjectExt, WidgetExt};
 use gtk4::{Expander, FlowBox, Label};
 
 pub struct AccordionWidget {
     pub widget: gtk::Box,
+    pub expander: Expander,
     pub flow_box: FlowBox,
 }
 
@@ -36,7 +37,16 @@ impl AccordionWidget {
 
         Self {
             widget: vbox,
+            expander,
             flow_box,
         }
+    }
+
+    pub fn connect_expanded<F: Fn(bool) + 'static>(&self, callback: F) {
+        self.expander
+            .connect_notify_local(Some("expanded"), move |expander, _| {
+                let is_expanded = expander.is_expanded();
+                callback(is_expanded);
+            });
     }
 }
