@@ -37,7 +37,7 @@ impl DirEntry {
 
         let should_process = |entry: &walkdir::DirEntry| -> bool {
             if let Ok(absolute) = to_absolute(entry.path()) {
-                if count_depth(absolute) > max_depth {
+                if count_depth(absolute) - 1 > max_depth {
                     return false;
                 }
                 if entry.file_type().is_dir() {
