@@ -1,4 +1,4 @@
-use crate::APP_CONFIG;
+use crate::{APP_CONFIG, IMAGE_CACHE};
 use anyhow::anyhow;
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
@@ -31,7 +31,9 @@ impl DirEntry {
 
     pub fn search(root: String) -> anyhow::Result<Vec<DirEntry>> {
         let max_depth = {
-            let app_config = APP_CONFIG.lock().map_err(|_| anyhow!("Failed to lock app config"))?;
+            let app_config = APP_CONFIG
+                .lock()
+                .map_err(|_| anyhow!("Failed to lock app config"))?;
             app_config.max_depth
         };
 
@@ -87,28 +89,52 @@ impl DirEntry {
 
     pub fn load_images(&mut self) -> anyhow::Result<()> {
         let thumbnail_size = {
-            let app_config = APP_CONFIG.lock().map_err(|_| anyhow!("Failed to lock app config"))?;
+            let app_config = APP_CONFIG
+                .lock()
+                .map_err(|_| anyhow!("Failed to lock app config"))?;
             app_config.thumbnail_size
         };
 
         for entry in &mut self.image_entries {
             if entry.image.is_none() {
-                let img = ImageReader::open(&entry.image_path)?.decode()?;
-                let (width, height) = img.dimensions();
-                let (rw, rh) = calculate_size(width, height, thumbnail_size);
-                let resized = img.resize(rw, rh, FilterType::Lanczos3);
-                let rgba = resized.to_rgba8();
-                let (width, height) = rgba.dimensions();
-                let texture = gdk::MemoryTexture::new(
-                    width as i32,
-                    height as i32,
-                    gdk::MemoryFormat::R8g8b8a8,
-                    &glib::Bytes::from(&rgba.into_raw()),
-                    (4 * width) as usize,
-                )
-                .upcast::<Texture>();
+                let cache_exist = {
+                    let image_cache = IMAGE_CACHE
+                        .lock()
+                        .map_err(|_| anyhow!("Failed to lock image cache"))?;
+                    image_cache.get(&entry.image_path).is_some()
+                };
 
-                entry.image = Some(texture);
+                match cache_exist {
+                    true => {
+                        let image_cache = IMAGE_CACHE
+                            .lock()
+                            .map_err(|_| anyhow!("Failed to lock image cache"))?;
+                        entry.image = image_cache.get(&entry.image_path).cloned();
+                    }
+                    false => {
+                        let img = ImageReader::open(&entry.image_path)?.decode()?;
+                        let (width, height) = img.dimensions();
+                        let (rw, rh) = calculate_size(width, height, thumbnail_size);
+                        let resized = img.resize(rw, rh, FilterType::Lanczos3);
+                        let rgba = resized.to_rgba8();
+                        let (width, height) = rgba.dimensions();
+                        let texture = gdk::MemoryTexture::new(
+                            width as i32,
+                            height as i32,
+                            gdk::MemoryFormat::R8g8b8a8,
+                            &glib::Bytes::from(&rgba.into_raw()),
+                            (4 * width) as usize,
+                        )
+                        .upcast::<Texture>();
+
+                        entry.image = Some(texture.clone());
+
+                        let mut image_cache = IMAGE_CACHE
+                            .lock()
+                            .map_err(|_| anyhow!("Failed to lock image cache"))?;
+                        image_cache.insert(&entry.image_path, texture);
+                    }
+                }
             }
         }
 

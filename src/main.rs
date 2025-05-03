@@ -1,10 +1,12 @@
 mod accordion_widget;
 mod app_config;
 mod entry;
+mod image_cache;
 mod image_widget;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
+use crate::image_cache::ImageCache;
 use crate::image_widget::ImageWidget;
 use anyhow::{anyhow, Result};
 use gtk4 as gtk;
@@ -21,6 +23,8 @@ use std::rc::Rc;
 use std::sync::{Arc, LazyLock, Mutex};
 
 static APP_CONFIG: LazyLock<Mutex<AppConfig>> = LazyLock::new(|| Mutex::new(AppConfig::default()));
+static IMAGE_CACHE: LazyLock<Mutex<ImageCache>> =
+    LazyLock::new(|| Mutex::new(ImageCache::new(500)));
 
 struct AppState {
     original_dir: String,
