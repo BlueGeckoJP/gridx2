@@ -45,7 +45,10 @@ impl ImageWidget {
         click_gesture.connect_released(move |_gesture, _n_press, _x, _y| {
             let image_path = image_path.clone();
             if let Some(path) = image_path {
-                open_with_xdg_open(path);
+                let err = open_with_xdg_open(path);
+                if err.is_err() {
+                    println!("Failed to open image: {}", err.unwrap_err());
+                }
             }
         });
 

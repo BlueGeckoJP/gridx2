@@ -1,9 +1,10 @@
 mod accordion_widget;
+mod app_config;
 mod entry;
 mod image_widget;
-mod app_config;
 
 use crate::accordion_widget::AccordionWidget;
+use crate::app_config::AppConfig;
 use crate::image_widget::ImageWidget;
 use anyhow::{anyhow, Result};
 use gtk4 as gtk;
@@ -18,7 +19,6 @@ use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
 use std::sync::{Arc, LazyLock, Mutex};
-use crate::app_config::AppConfig;
 
 static APP_CONFIG: LazyLock<Mutex<AppConfig>> = LazyLock::new(|| Mutex::new(AppConfig::default()));
 
@@ -163,13 +163,14 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
 
                 for _ in 0..entry.image_entries.len() {
                     let thumbnail_size = {
-                        let app_config = APP_CONFIG.lock().map_err(|_| anyhow!("Failed to lock app config"))?;
+                        let app_config = APP_CONFIG
+                            .lock()
+                            .map_err(|_| anyhow!("Failed to lock app config"))?;
                         app_config.thumbnail_size
                     } as i32;
-                    
+
                     let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                    fixed_size_container
-                        .set_size_request(thumbnail_size, thumbnail_size);
+                    fixed_size_container.set_size_request(thumbnail_size, thumbnail_size);
                     fixed_size_container.set_halign(gtk::Align::Center);
                     fixed_size_container.set_valign(gtk::Align::Center);
 
@@ -282,9 +283,33 @@ fn get_relative_path(base_path: &str, path: &str) -> Result<String> {
     Ok(relative_path.to_string())
 }
 
-fn open_with_xdg_open(image_path: String) {
-    let child = Command::new("xdg-open").arg(image_path).spawn();
-    if let Err(e) = child {
-        println!("Failed to open image with xdg-open: {e}");
-    }
+fn open_with_xdg_open(image_path: String) -> Result<()> {
+    let mut open_command = {
+        let app_config = APP_CONFIG
+            .lock()
+            .map_err(|_| anyhow!("Failed to lock app config"))?;
+        app_config.open_command.clone()
+    };
+    let index = open_command.iter().position(|x| x == &"<path>".to_string());
+
+    let mut cmd = match index {
+        Some(index) => {
+            open_command[index] = image_path.clone();
+            let first_arg = open_command[0].clone();
+            let mut cmd = Command::new(&first_arg);
+            cmd.args(&open_command[1..]);
+            cmd
+        }
+        None => {
+            let app_config = AppConfig::default();
+            let first_arg = app_config.open_command[0].clone();
+            let mut cmd = Command::new(&first_arg);
+            cmd.args(&app_config.open_command[1..]);
+            cmd
+        }
+    };
+
+    cmd.spawn()?;
+
+    Ok(())
 }
