@@ -1,10 +1,11 @@
 mod accordion_widget;
 mod entry;
 mod image_widget;
+mod app_config;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::image_widget::ImageWidget;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
 use gtk4::prelude::{
@@ -16,10 +17,10 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
+use crate::app_config::AppConfig;
 
-static MAX_DEPTH: u32 = 2;
-static THUMBNAIL_SIZE: u32 = 200;
+static APP_CONFIG: LazyLock<Mutex<AppConfig>> = LazyLock::new(|| Mutex::new(AppConfig::default()));
 
 struct AppState {
     original_dir: String,
@@ -161,9 +162,14 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                 let mut overlays = Vec::new();
 
                 for _ in 0..entry.image_entries.len() {
+                    let thumbnail_size = {
+                        let app_config = APP_CONFIG.lock().map_err(|_| anyhow!("Failed to lock app config"))?;
+                        app_config.thumbnail_size
+                    } as i32;
+                    
                     let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
                     fixed_size_container
-                        .set_size_request(THUMBNAIL_SIZE as i32, THUMBNAIL_SIZE as i32);
+                        .set_size_request(thumbnail_size, thumbnail_size);
                     fixed_size_container.set_halign(gtk::Align::Center);
                     fixed_size_container.set_valign(gtk::Align::Center);
 

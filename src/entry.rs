@@ -1,4 +1,4 @@
-use crate::{MAX_DEPTH, THUMBNAIL_SIZE};
+use crate::APP_CONFIG;
 use anyhow::anyhow;
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
@@ -30,8 +30,13 @@ impl DirEntry {
     }
 
     pub fn search(root: String) -> anyhow::Result<Vec<DirEntry>> {
+        let max_depth = {
+            let app_config = APP_CONFIG.lock().map_err(|_| anyhow!("Failed to lock app config"))?;
+            app_config.max_depth
+        };
+
         let mut entries: Vec<DirEntry> = Vec::new();
-        let max_depth = count_depth(to_absolute(root.clone())?) + MAX_DEPTH;
+        let max_depth = count_depth(to_absolute(root.clone())?) + max_depth;
 
         let walker = WalkDir::new(root).into_iter();
 
@@ -81,11 +86,16 @@ impl DirEntry {
     }
 
     pub fn load_images(&mut self) -> anyhow::Result<()> {
+        let thumbnail_size = {
+            let app_config = APP_CONFIG.lock().map_err(|_| anyhow!("Failed to lock app config"))?;
+            app_config.thumbnail_size
+        };
+
         for entry in &mut self.image_entries {
             if entry.image.is_none() {
                 let img = ImageReader::open(&entry.image_path)?.decode()?;
                 let (width, height) = img.dimensions();
-                let (rw, rh) = calculate_size(width, height, THUMBNAIL_SIZE);
+                let (rw, rh) = calculate_size(width, height, thumbnail_size);
                 let resized = img.resize(rw, rh, FilterType::Lanczos3);
                 let rgba = resized.to_rgba8();
                 let (width, height) = rgba.dimensions();
