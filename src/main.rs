@@ -22,7 +22,8 @@ use std::process::Command;
 use std::rc::Rc;
 use std::sync::{Arc, LazyLock, Mutex};
 
-static APP_CONFIG: LazyLock<Mutex<AppConfig>> = LazyLock::new(|| Mutex::new(AppConfig::default()));
+static APP_CONFIG: LazyLock<Mutex<AppConfig>> =
+    LazyLock::new(|| Mutex::new(AppConfig::load().unwrap_or_default()));
 static IMAGE_CACHE: LazyLock<Mutex<ImageCache>> =
     LazyLock::new(|| Mutex::new(ImageCache::new(500)));
 
