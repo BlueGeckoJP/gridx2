@@ -56,7 +56,11 @@ impl DirEntry {
         };
 
         for entry in walker.filter_entry(should_process) {
+            if entry.is_err() {
+                continue;
+            }
             let entry = entry?;
+
             if entry.file_type().is_dir() {
                 continue;
             }

@@ -3,11 +3,13 @@ mod app_config;
 mod entry;
 mod image_cache;
 mod image_widget;
+mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
 use crate::image_cache::ImageCache;
 use crate::image_widget::ImageWidget;
+use crate::settings_window::SettingsWindow;
 use anyhow::{anyhow, Result};
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
@@ -86,6 +88,7 @@ fn build_ui(app: &Application) {
 
     let file_menu = gio::Menu::new();
     file_menu.append(Some("Open Folder"), Some("app.open"));
+    file_menu.append(Some("Open Settings"), Some("app.settings"));
 
     menubar.append_submenu(Some("File"), &file_menu);
 
@@ -117,6 +120,24 @@ fn build_ui(app: &Application) {
         }
     ));
     app.add_action(&open_action);
+
+    let settings_action = gio::SimpleAction::new("settings", None);
+    settings_action.connect_activate(glib::clone!(
+        #[weak]
+        window,
+        move |_, _| {
+            let settings_window = SettingsWindow::new(&window);
+            match settings_window {
+                Ok(settings_window) => {
+                    settings_window.show();
+                }
+                Err(e) => {
+                    eprintln!("Failed to create settings window: {e}");
+                }
+            }
+        }
+    ));
+    app.add_action(&settings_action);
 
     // Build a scrollable window
     let scrollable_window = gtk::ScrolledWindow::builder()

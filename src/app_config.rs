@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 
-static SAVE_DIR: [&str; 1] = ["~/.gridx2.toml"];
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub max_depth: u32,
     pub thumbnail_size: u32,
@@ -23,29 +21,31 @@ impl Default for AppConfig {
 
 impl AppConfig {
     pub fn load() -> anyhow::Result<Self> {
-        let found = SAVE_DIR.iter().find(|dir| Path::new(dir).exists());
+        let found = Self::get_exist_path()?;
 
-        let path = match found {
-            Some(dir) => dir,
-            None => return Err(anyhow::anyhow!("No config save directory found")),
-        };
-
-        let content = fs::read_to_string(path)?;
+        let content = fs::read_to_string(found)?;
         let config: Self = toml::from_str(&content)?;
 
         Ok(config)
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
-        let found = SAVE_DIR.iter().find(|dir| Path::new(dir).exists());
-
-        let path = match found {
-            Some(dir) => dir,
-            None => return Err(anyhow::anyhow!("No config save directory found")),
-        };
+        let found = Self::get_exist_path()?;
 
         let content = toml::to_string(self)?;
-        fs::write(path, content)?;
+        fs::write(found, content)?;
+
         Ok(())
+    }
+
+    fn get_exist_path() -> anyhow::Result<PathBuf> {
+        let home_path = home::home_dir().ok_or(anyhow::anyhow!("No home directory found"))?;
+        let save_path = home_path.join(".gridx2.toml");
+
+        let path = save_path.canonicalize()?;
+        if path.exists() {
+            return Ok(path);
+        }
+        Err(anyhow::anyhow!("No config save directory found"))
     }
 }
