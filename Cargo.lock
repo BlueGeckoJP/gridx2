@@ -551,6 +551,7 @@ dependencies = [
  "gtk4",
  "home",
  "image",
+ "rayon",
  "serde",
  "toml",
  "walkdir",

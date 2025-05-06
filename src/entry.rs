@@ -5,6 +5,7 @@ use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
+use rayon::prelude::*;
 use std::path;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -99,51 +100,73 @@ impl DirEntry {
             app_config.thumbnail_size
         };
 
-        for entry in &mut self.image_entries {
-            if entry.image.is_none() {
-                let cache_exist = {
-                    let image_cache = IMAGE_CACHE
-                        .lock()
-                        .map_err(|_| anyhow!("Failed to lock image cache"))?;
-                    image_cache.get(&entry.image_path).is_some()
+        let paths_to_load: Vec<_> = self
+            .image_entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| entry.image.is_none())
+            .map(|(index, entry)| (index, entry.image_path.clone()))
+            .collect();
+
+        if paths_to_load.is_empty() {
+            return Ok(());
+        }
+
+        let loaded_textures: Vec<_> = paths_to_load
+            .par_iter()
+            .filter_map(|(index, path)| {
+                let cache_hit = {
+                    let image_cache = match IMAGE_CACHE.lock() {
+                        Ok(cache) => cache,
+                        Err(_) => return None,
+                    };
+                    image_cache.get(path).cloned()
                 };
 
-                match cache_exist {
-                    true => {
-                        let image_cache = IMAGE_CACHE
-                            .lock()
-                            .map_err(|_| anyhow!("Failed to lock image cache"))?;
-                        entry.image = image_cache.get(&entry.image_path).cloned();
-                    }
-                    false => {
-                        let img = ImageReader::open(&entry.image_path)?.decode()?;
-                        let (width, height) = img.dimensions();
-                        let (rw, rh) = calculate_size(width, height, thumbnail_size);
-                        let resized = img.resize(rw, rh, FilterType::Lanczos3);
-                        let rgba = resized.to_rgba8();
-                        let (width, height) = rgba.dimensions();
-                        let texture = gdk::MemoryTexture::new(
-                            width as i32,
-                            height as i32,
-                            gdk::MemoryFormat::R8g8b8a8,
-                            &glib::Bytes::from(&rgba.into_raw()),
-                            (4 * width) as usize,
-                        )
-                        .upcast::<Texture>();
+                if let Some(texture) = cache_hit {
+                    return Some((*index, texture, path.clone()));
+                }
 
-                        entry.image = Some(texture.clone());
-
-                        let mut image_cache = IMAGE_CACHE
-                            .lock()
-                            .map_err(|_| anyhow!("Failed to lock image cache"))?;
-                        image_cache.insert(&entry.image_path, texture);
+                match load_and_resize_image(path, thumbnail_size) {
+                    Ok(texture) => Some((*index, texture.clone(), path.clone())),
+                    Err(e) => {
+                        eprintln!("Failed to load image: {path}: {e}");
+                        None
                     }
                 }
+            })
+            .collect();
+
+        for (index, texture, path) in loaded_textures {
+            self.image_entries[index].image = Some(texture.clone());
+
+            if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
+                image_cache.insert(path, texture);
             }
         }
 
         Ok(())
     }
+}
+
+fn load_and_resize_image(path: &str, thumbnail_size: u32) -> anyhow::Result<Texture> {
+    let img = ImageReader::open(path)?.decode()?;
+    let (width, height) = img.dimensions();
+    let (rw, rh) = calculate_size(width, height, thumbnail_size);
+    let resized = img.resize(rw, rh, FilterType::Triangle);
+    let rgba = resized.to_rgba8();
+    let (width, height) = rgba.dimensions();
+
+    let texture = gdk::MemoryTexture::new(
+        width as i32,
+        height as i32,
+        gdk::MemoryFormat::R8g8b8a8,
+        &glib::Bytes::from(&rgba.into_raw()),
+        (4 * width) as usize,
+    )
+    .upcast::<Texture>();
+
+    Ok(texture)
 }
 
 fn count_depth<T: ToString>(path: T) -> u32 {
