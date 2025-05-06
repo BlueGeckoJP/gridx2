@@ -23,6 +23,7 @@ use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
 use std::sync::{Arc, LazyLock, Mutex};
+use std::time::Duration;
 
 static APP_CONFIG: LazyLock<Mutex<AppConfig>> =
     LazyLock::new(|| Mutex::new(AppConfig::load().unwrap_or_default()));
@@ -259,11 +260,21 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
 
                                         let accordion_widget = accordion_widget.clone();
                                         let overlays = overlays.clone();
+
                                         glib::MainContext::default().spawn_local(async move {
-                                            let overlay = overlays[index].clone();
-                                            overlay.add_overlay(image_widget.widget());
-                                            accordion_widget.borrow_mut().flow_box.append(&overlay);
+                                            if index < overlays.len() {
+                                                let overlay = overlays[index].clone();
+                                                overlay.add_overlay(image_widget.widget());
+                                                accordion_widget
+                                                    .borrow_mut()
+                                                    .flow_box
+                                                    .append(&overlay);
+                                            }
                                         });
+
+                                        if index % 5 == 0 {
+                                            glib::timeout_future(Duration::from_millis(10)).await;
+                                        }
                                     }
                                 }
                             });
