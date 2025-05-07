@@ -171,7 +171,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
 
     match entries {
         Ok(dir_entries) => {
-            let (original_dir, mut entries_indies) = {
+            let (original_dir, entries_indies) = {
                 let mut app_state_guard = app_state
                     .lock()
                     .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
