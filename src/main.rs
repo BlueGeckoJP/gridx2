@@ -250,9 +250,10 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                     return;
                                 }
 
-                                for (index, image_entry) in
-                                    loaded_entry.image_entries.iter().enumerate()
-                                {
+                                let mut image_entries = loaded_entry.image_entries.clone();
+                                image_entries.sort_by(|a, b| a.image_path.cmp(&b.image_path));
+
+                                for (index, image_entry) in image_entries.iter().enumerate() {
                                     if let Some(img) = &image_entry.image {
                                         let mut image_widget = ImageWidget::new();
                                         image_widget
