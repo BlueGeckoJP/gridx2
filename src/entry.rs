@@ -91,8 +91,14 @@ impl DirEntry {
 
         Ok(entries)
     }
+}
 
-    pub fn load_images(&mut self) -> anyhow::Result<()> {
+impl ImageEntry {
+    pub fn load_image(&mut self) -> anyhow::Result<()> {
+        if self.image.is_some() {
+            return Ok(());
+        }
+
         let thumbnail_size = {
             let app_config = APP_CONFIG
                 .lock()
@@ -100,48 +106,24 @@ impl DirEntry {
             app_config.thumbnail_size
         };
 
-        let paths_to_load: Vec<_> = self
-            .image_entries
-            .iter()
-            .enumerate()
-            .filter(|(_, entry)| entry.image.is_none())
-            .map(|(index, entry)| (index, entry.image_path.clone()))
-            .collect();
+        let cache_hit = {
+            let image_cache = match IMAGE_CACHE.lock() {
+                Ok(cache) => cache,
+                Err(_) => return Err(anyhow!("Failed to lock image cache")),
+            };
+            image_cache.get(&self.image_path).cloned()
+        };
 
-        if paths_to_load.is_empty() {
+        if let Some(texture) = cache_hit {
+            self.image = Some(texture.clone());
             return Ok(());
         }
 
-        let loaded_textures: Vec<_> = paths_to_load
-            .par_iter()
-            .filter_map(|(index, path)| {
-                let cache_hit = {
-                    let image_cache = match IMAGE_CACHE.lock() {
-                        Ok(cache) => cache,
-                        Err(_) => return None,
-                    };
-                    image_cache.get(path).cloned()
-                };
-
-                if let Some(texture) = cache_hit {
-                    return Some((*index, texture, path.clone()));
-                }
-
-                match load_and_resize_image(path, thumbnail_size) {
-                    Ok(texture) => Some((*index, texture.clone(), path.clone())),
-                    Err(e) => {
-                        eprintln!("Failed to load image: {path}: {e}");
-                        None
-                    }
-                }
-            })
-            .collect();
-
-        for (index, texture, path) in loaded_textures {
-            self.image_entries[index].image = Some(texture.clone());
+        if let Ok(texture) = load_and_resize_image(&self.image_path, thumbnail_size) {
+            self.image = Some(texture.clone());
 
             if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
-                image_cache.insert(path, texture);
+                image_cache.insert(&self.image_path, texture);
             }
         }
 

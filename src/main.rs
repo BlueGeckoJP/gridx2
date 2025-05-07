@@ -7,6 +7,7 @@ mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
+use crate::entry::ImageEntry;
 use crate::image_cache::ImageCache;
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
@@ -18,13 +19,15 @@ use gtk4::prelude::{
     GtkApplicationExt, GtkWindowExt, WidgetExt,
 };
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
+use rayon::prelude::*;
 use regex::Regex;
 use std::cell::RefCell;
 use std::cmp::{min, Ordering};
 use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{mpsc, Arc, LazyLock, Mutex};
+use std::thread;
 use std::time::Duration;
 
 static APP_CONFIG: LazyLock<Mutex<AppConfig>> =
@@ -191,7 +194,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
             for (index, entry) in entries_indies.iter().enumerate() {
                 let rel_path = get_relative_path(&original_dir, &entry.dir_path)?;
                 let accordion_widget =
-                    Rc::new(RefCell::new(AccordionWidget::new(rel_path.as_str())));
+                    Arc::new(Mutex::new(AccordionWidget::new(rel_path.as_str())));
                 let mut overlays = Vec::new();
 
                 for _ in 0..entry.image_entries.len() {
@@ -210,26 +213,48 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                     let overlay = gtk::Overlay::new();
                     overlay.set_child(Some(&fixed_size_container));
 
-                    accordion_widget.borrow_mut().flow_box.append(&overlay);
+                    accordion_widget
+                        .lock()
+                        .map_err(|_| anyhow!("Failed to lock accordion widget"))?
+                        .flow_box
+                        .append(&overlay);
                     overlays.push(overlay);
                 }
 
-                vbox.append(&accordion_widget.borrow().widget);
+                vbox.append(
+                    &accordion_widget
+                        .lock()
+                        .map_err(|_| anyhow!("Failed to lock accordion widget"))?
+                        .widget,
+                );
 
                 let app_state_clone = app_state.clone();
 
                 accordion_widget
                     .clone()
-                    .borrow()
+                    .lock()
+                    .map_err(|_| anyhow!("Failed to lock accordion widget"))?
                     .connect_expanded(move |is_expanded| {
                         if is_expanded {
                             let app_state_clone = app_state_clone.clone();
                             let accordion_widget = accordion_widget.clone();
                             let overlays = overlays.clone();
 
-                            while let Some(child) = accordion_widget.borrow().flow_box.first_child()
                             {
-                                accordion_widget.borrow().flow_box.remove(&child);
+                                let accordion_widget = match accordion_widget.lock() {
+                                    Ok(accordion_widget) => accordion_widget,
+                                    Err(e) => {
+                                        eprintln!("Failed to lock accordion widget: {e}");
+                                        return;
+                                    }
+                                };
+
+                                while let Some(child) = accordion_widget.flow_box.first_child() {
+                                    accordion_widget.flow_box.remove(&child);
+                                }
+
+                                accordion_widget.progress_bar.set_fraction(0.0);
+                                accordion_widget.progress_bar.set_visible(true);
                             }
 
                             glib::spawn_future_local(async move {
@@ -250,17 +275,74 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                     }
                                 };
 
-                                let mut loaded_entry = dir_entry_clone;
-                                if let Err(e) = loaded_entry.load_images() {
-                                    eprintln!("Failed to load images: {e}");
-                                    return;
+                                let total_images = dir_entry_clone.image_entries.len();
+
+                                let (tx, rx) = mpsc::channel::<f64>();
+
+                                let accordion_widget_cloned = accordion_widget.clone();
+
+                                let loaded_entry = dir_entry_clone;
+                                let mut loaded_entry_clone = loaded_entry.clone();
+
+                                let (done_tx, done_rx) = mpsc::channel::<Vec<ImageEntry>>();
+                                let counter = Arc::new(Mutex::new(0f64));
+
+                                thread::spawn(move || {
+                                    loaded_entry_clone.image_entries.par_iter_mut().for_each(
+                                        |image_entry| {
+                                            if let Err(e) = image_entry.load_image() {
+                                                eprintln!("Failed to load image: {e}");
+                                            }
+
+                                            let mut counter = match counter.lock() {
+                                                Ok(counter) => counter,
+                                                Err(e) => {
+                                                    eprintln!("Failed to lock counter: {e}");
+                                                    return;
+                                                }
+                                            };
+
+                                            *counter += 1.0;
+
+                                            let progress = *counter / total_images as f64;
+                                            let _ = tx.send(progress);
+                                        },
+                                    );
+
+                                    let _ = tx.send(1.0);
+                                    let _ = done_tx.send(loaded_entry_clone.image_entries.clone());
+                                });
+
+                                while let Ok(progress) = rx.recv() {
+                                    println!("Progress: {progress}");
+                                    match accordion_widget_cloned.lock() {
+                                        Ok(accordion_widget) => {
+                                            accordion_widget.progress_bar.set_fraction(progress);
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Failed to lock accordion widget: {e}");
+                                        }
+                                    }
+                                    glib::timeout_future(Duration::from_millis(10)).await;
                                 }
 
-                                let mut image_entries = loaded_entry.image_entries.clone();
-                                image_entries.sort_by(|a, b| {
-                                    natural_sort(a.image_path.as_str(), b.image_path.as_str())
-                                        .unwrap_or(Ordering::Equal)
-                                });
+                                let image_entries = match done_rx.recv() {
+                                    Ok(image_entries) => {
+                                        let mut sorted_entries = image_entries.clone();
+                                        sorted_entries.sort_by(|a, b| {
+                                            natural_sort(
+                                                a.image_path.as_str(),
+                                                b.image_path.as_str(),
+                                            )
+                                            .unwrap_or(Ordering::Equal)
+                                        });
+                                        sorted_entries
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to receive image entries: {e}");
+                                        return;
+                                    }
+                                };
 
                                 for (index, image_entry) in image_entries.iter().enumerate() {
                                     if let Some(img) = &image_entry.image {
@@ -275,16 +357,31 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                             if index < overlays.len() {
                                                 let overlay = overlays[index].clone();
                                                 overlay.add_overlay(image_widget.widget());
-                                                accordion_widget
-                                                    .borrow_mut()
-                                                    .flow_box
-                                                    .append(&overlay);
+                                                match accordion_widget.lock() {
+                                                    Ok(accordion_widget) => {
+                                                        accordion_widget.flow_box.append(&overlay)
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!(
+                                                            "Failed to lock accordion widget: {e}"
+                                                        );
+                                                    }
+                                                }
                                             }
                                         });
 
                                         if index % 5 == 0 {
                                             glib::timeout_future(Duration::from_millis(10)).await;
                                         }
+                                    }
+                                }
+
+                                match accordion_widget.lock() {
+                                    Ok(accordion_widget) => {
+                                        accordion_widget.progress_bar.set_visible(false);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to lock accordion widget: {e}");
                                     }
                                 }
                             });

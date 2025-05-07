@@ -1,11 +1,12 @@
 use gtk4 as gtk;
 use gtk4::prelude::{BoxExt, ObjectExt, WidgetExt};
-use gtk4::{Expander, FlowBox, Label};
+use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
 pub struct AccordionWidget {
     pub widget: gtk::Box,
     pub expander: Expander,
     pub flow_box: FlowBox,
+    pub progress_bar: ProgressBar,
 }
 
 impl AccordionWidget {
@@ -17,12 +18,18 @@ impl AccordionWidget {
 
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
+
+        let progress_bar = ProgressBar::new();
+        progress_bar.set_visible(false);
+
+        vbox.append(&progress_bar);
         vbox.append(&expander);
 
         Self {
             widget: vbox,
             expander,
             flow_box,
+            progress_bar,
         }
     }
 
