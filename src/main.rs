@@ -176,6 +176,10 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                     .lock()
                     .map_err(|_| anyhow::anyhow!("Failed to lock"))?;
 
+                app_state_guard
+                    .dir_entries
+                    .sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
+
                 app_state_guard.dir_entries = dir_entries;
 
                 let original_dir = app_state_guard.original_dir.clone();
@@ -183,8 +187,6 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
 
                 (original_dir, dir_entries)
             };
-
-            entries_indies.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
             for (index, entry) in entries_indies.iter().enumerate() {
                 let rel_path = get_relative_path(&original_dir, &entry.dir_path)?;
