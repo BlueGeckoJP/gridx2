@@ -314,7 +314,6 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                 });
 
                                 while let Ok(progress) = rx.recv() {
-                                    println!("Progress: {progress}");
                                     match accordion_widget_cloned.lock() {
                                         Ok(accordion_widget) => {
                                             accordion_widget.progress_bar.set_fraction(progress);
