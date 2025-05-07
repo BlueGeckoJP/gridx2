@@ -18,7 +18,9 @@ use gtk4::prelude::{
     GtkApplicationExt, GtkWindowExt, WidgetExt,
 };
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
+use regex::Regex;
 use std::cell::RefCell;
+use std::cmp::{min, Ordering};
 use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
@@ -253,7 +255,10 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                 }
 
                                 let mut image_entries = loaded_entry.image_entries.clone();
-                                image_entries.sort_by(|a, b| a.image_path.cmp(&b.image_path));
+                                image_entries.sort_by(|a, b| {
+                                    natural_sort(a.image_path.as_str(), b.image_path.as_str())
+                                        .unwrap_or(Ordering::Equal)
+                                });
 
                                 for (index, image_entry) in image_entries.iter().enumerate() {
                                     if let Some(img) = &image_entry.image {
@@ -352,4 +357,44 @@ fn open_with_xdg_open(image_path: String) -> Result<()> {
     cmd.spawn()?;
 
     Ok(())
+}
+
+fn natural_sort(a: &str, b: &str) -> Result<Ordering> {
+    let re_all = Regex::new(r"(\d+)|(\D+)")?;
+    let re_num = Regex::new(r"^\d+$")?;
+
+    let a_parts: Vec<&str> = re_all.find_iter(a).map(|m| m.as_str()).collect();
+    let b_parts: Vec<&str> = re_all.find_iter(b).map(|m| m.as_str()).collect();
+
+    for i in 0..min(a_parts.len(), b_parts.len()) {
+        let a_part = a_parts[i];
+        let b_part = b_parts[i];
+
+        if i >= a_parts.len() {
+            return Ok(Ordering::Less);
+        }
+        if i >= b_parts.len() {
+            return Ok(Ordering::Greater);
+        }
+
+        if a_part == b_part {
+            continue;
+        }
+
+        return if re_num.is_match(a_part) {
+            if re_num.is_match(b_part) {
+                let a_num = a_part.parse::<i32>()?;
+                let b_num = b_part.parse::<i32>()?;
+                Ok(a_num.cmp(&b_num))
+            } else {
+                Ok(Ordering::Greater)
+            }
+        } else if re_num.is_match(b_part) {
+            Ok(Ordering::Less)
+        } else {
+            Ok(a_part.cmp(b_part))
+        };
+    }
+
+    Ok(Ordering::Equal)
 }
