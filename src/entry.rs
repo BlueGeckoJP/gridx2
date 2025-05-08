@@ -1,10 +1,6 @@
-use crate::{APP_CONFIG, IMAGE_CACHE};
+use crate::image_entry::ImageEntry;
+use crate::APP_CONFIG;
 use anyhow::anyhow;
-use gtk4::gdk::Texture;
-use gtk4::prelude::Cast;
-use gtk4::{gdk, glib};
-use image::imageops::FilterType;
-use image::{GenericImageView, ImageReader};
 use std::path;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -13,12 +9,6 @@ use walkdir::WalkDir;
 pub struct DirEntry {
     pub dir_path: String,
     pub image_entries: Vec<ImageEntry>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ImageEntry {
-    pub image_path: String,
-    pub image: Option<Texture>,
 }
 
 impl DirEntry {
@@ -92,64 +82,6 @@ impl DirEntry {
     }
 }
 
-impl ImageEntry {
-    pub fn load_image(&mut self) -> anyhow::Result<()> {
-        if self.image.is_some() {
-            return Ok(());
-        }
-
-        let thumbnail_size = {
-            let app_config = APP_CONFIG
-                .lock()
-                .map_err(|_| anyhow!("Failed to lock app config"))?;
-            app_config.thumbnail_size
-        };
-
-        let cache_hit = {
-            let image_cache = match IMAGE_CACHE.lock() {
-                Ok(cache) => cache,
-                Err(_) => return Err(anyhow!("Failed to lock image cache")),
-            };
-            image_cache.get(&self.image_path).cloned()
-        };
-
-        if let Some(texture) = cache_hit {
-            self.image = Some(texture.clone());
-            return Ok(());
-        }
-
-        if let Ok(texture) = load_and_resize_image(&self.image_path, thumbnail_size) {
-            self.image = Some(texture.clone());
-
-            if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
-                image_cache.insert(&self.image_path, texture);
-            }
-        }
-
-        Ok(())
-    }
-}
-
-fn load_and_resize_image(path: &str, thumbnail_size: u32) -> anyhow::Result<Texture> {
-    let img = ImageReader::open(path)?.decode()?;
-    let (width, height) = img.dimensions();
-    let (rw, rh) = calculate_size(width, height, thumbnail_size);
-    let resized = img.resize(rw, rh, FilterType::Triangle);
-    let rgba = resized.to_rgba8();
-    let (width, height) = rgba.dimensions();
-
-    let texture = gdk::MemoryTexture::new(
-        width as i32,
-        height as i32,
-        gdk::MemoryFormat::R8g8b8a8,
-        &glib::Bytes::from(&rgba.into_raw()),
-        (4 * width) as usize,
-    )
-    .upcast::<Texture>();
-
-    Ok(texture)
-}
-
 fn count_depth<T: ToString>(path: T) -> u32 {
     path.to_string()
         .chars()
@@ -168,20 +100,5 @@ fn is_image<T: AsRef<Path>>(path: T) -> bool {
         supported_extensions.contains(&ext.to_string_lossy().to_string())
     } else {
         false
-    }
-}
-
-fn calculate_size(mut width: u32, mut height: u32, to: u32) -> (u32, u32) {
-    match width > height {
-        true => {
-            height = (height * to) / width;
-            width = to;
-            (width, height)
-        }
-        false => {
-            width = (width * to) / height;
-            height = to;
-            (width, height)
-        }
     }
 }

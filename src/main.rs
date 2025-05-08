@@ -2,13 +2,14 @@ mod accordion_widget;
 mod app_config;
 mod entry;
 mod image_cache;
+mod image_entry;
 mod image_widget;
 mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
-use crate::entry::ImageEntry;
 use crate::image_cache::ImageCache;
+use crate::image_entry::ImageEntry;
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
 use anyhow::{anyhow, Result};
