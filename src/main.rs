@@ -194,7 +194,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
             for (index, entry) in entries_indies.iter().enumerate() {
                 let rel_path = get_relative_path(&original_dir, &entry.dir_path)?;
                 let accordion_widget =
-                    Arc::new(Mutex::new(AccordionWidget::new(rel_path.as_str())));
+                    Rc::new(RefCell::new(AccordionWidget::new(rel_path.as_str())));
                 let mut overlays = Vec::new();
 
                 for _ in 0..entry.image_entries.len() {
@@ -213,27 +213,17 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                     let overlay = gtk::Overlay::new();
                     overlay.set_child(Some(&fixed_size_container));
 
-                    accordion_widget
-                        .lock()
-                        .map_err(|_| anyhow!("Failed to lock accordion widget"))?
-                        .flow_box
-                        .append(&overlay);
+                    accordion_widget.borrow().flow_box.append(&overlay);
                     overlays.push(overlay);
                 }
 
-                vbox.append(
-                    &accordion_widget
-                        .lock()
-                        .map_err(|_| anyhow!("Failed to lock accordion widget"))?
-                        .widget,
-                );
+                vbox.append(&accordion_widget.borrow().widget);
 
                 let app_state_clone = app_state.clone();
 
                 accordion_widget
                     .clone()
-                    .lock()
-                    .map_err(|_| anyhow!("Failed to lock accordion widget"))?
+                    .borrow()
                     .connect_expanded(move |is_expanded| {
                         if is_expanded {
                             let app_state_clone = app_state_clone.clone();
@@ -241,13 +231,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                             let overlays = overlays.clone();
 
                             {
-                                let accordion_widget = match accordion_widget.lock() {
-                                    Ok(accordion_widget) => accordion_widget,
-                                    Err(e) => {
-                                        eprintln!("Failed to lock accordion widget: {e}");
-                                        return;
-                                    }
-                                };
+                                let accordion_widget = accordion_widget.borrow();
 
                                 while let Some(child) = accordion_widget.flow_box.first_child() {
                                     accordion_widget.flow_box.remove(&child);
@@ -314,14 +298,10 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                 });
 
                                 while let Ok(progress) = rx.recv() {
-                                    match accordion_widget_cloned.lock() {
-                                        Ok(accordion_widget) => {
-                                            accordion_widget.progress_bar.set_fraction(progress);
-                                        }
-                                        Err(e) => {
-                                            eprintln!("Failed to lock accordion widget: {e}");
-                                        }
-                                    }
+                                    accordion_widget_cloned
+                                        .borrow()
+                                        .progress_bar
+                                        .set_fraction(progress);
                                     glib::timeout_future(Duration::from_millis(10)).await;
                                 }
 
@@ -356,16 +336,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                             if index < overlays.len() {
                                                 let overlay = overlays[index].clone();
                                                 overlay.add_overlay(image_widget.widget());
-                                                match accordion_widget.lock() {
-                                                    Ok(accordion_widget) => {
-                                                        accordion_widget.flow_box.append(&overlay)
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!(
-                                                            "Failed to lock accordion widget: {e}"
-                                                        );
-                                                    }
-                                                }
+                                                accordion_widget.borrow().flow_box.append(&overlay);
                                             }
                                         });
 
@@ -375,14 +346,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
                                     }
                                 }
 
-                                match accordion_widget.lock() {
-                                    Ok(accordion_widget) => {
-                                        accordion_widget.progress_bar.set_visible(false);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to lock accordion widget: {e}");
-                                    }
-                                }
+                                accordion_widget.borrow().progress_bar.set_visible(false);
                             });
                         }
                     });
