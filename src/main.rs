@@ -12,7 +12,7 @@ use crate::image_cache::ImageCache;
 use crate::image_entry::ImageEntry;
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use gtk4 as gtk;
 use gtk4::gio::Cancellable;
 use gtk4::prelude::{
@@ -159,7 +159,7 @@ fn build_ui(app: &Application) {
     window.present();
 }
 
-fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> {
+fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> anyhow::Result<()> {
     while let Some(child) = vbox.first_child() {
         vbox.remove(&child);
     }
@@ -373,7 +373,7 @@ fn load_css() {
     );
 }
 
-fn get_relative_path(base_path: &str, path: &str) -> Result<String> {
+fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> {
     let base_path = Path::new(base_path).canonicalize()?;
     let path = Path::new(path).canonicalize()?;
     let relative_path = path.strip_prefix(&base_path)?;
@@ -391,7 +391,7 @@ fn get_relative_path(base_path: &str, path: &str) -> Result<String> {
     Ok(relative_path.to_string())
 }
 
-fn open_with_xdg_open(image_path: String) -> Result<()> {
+fn open_with_xdg_open(image_path: String) -> anyhow::Result<()> {
     let mut open_command = {
         let app_config = APP_CONFIG
             .lock()
@@ -422,7 +422,7 @@ fn open_with_xdg_open(image_path: String) -> Result<()> {
     Ok(())
 }
 
-fn natural_sort(a: &str, b: &str) -> Result<Ordering> {
+fn natural_sort(a: &str, b: &str) -> anyhow::Result<Ordering> {
     let re_all = Regex::new(r"(\d+)|(\D+)")?;
     let re_num = Regex::new(r"^\d+$")?;
 
