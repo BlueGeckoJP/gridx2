@@ -25,7 +25,7 @@ use regex::Regex;
 use std::cell::RefCell;
 use std::cmp::{min, Ordering};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::sync::{mpsc, Arc, LazyLock, Mutex};
 use std::thread;
@@ -481,6 +481,10 @@ fn open_with_xdg_open(image_path: String) -> anyhow::Result<()> {
             cmd
         }
     };
+
+    cmd.stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .stdin(Stdio::null());
 
     cmd.spawn()?;
 
