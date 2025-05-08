@@ -102,6 +102,31 @@ fn build_ui(app: &Application) {
     app.set_menubar(Some(&menubar));
     window.set_show_menubar(true);
 
+    // Build actions
+    build_action(app, &window, &app_ui, &app_state);
+
+    // Build a scrollable window
+    let scrollable_window = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .vscrollbar_policy(gtk::PolicyType::Automatic)
+        .child(&vbox)
+        .build();
+
+    window.set_child(Some(&scrollable_window));
+
+    // Finalize
+    window.present();
+}
+
+fn build_action(
+    app: &Application,
+    window: &ApplicationWindow,
+    app_ui: &Rc<RefCell<AppUI>>,
+    app_state: &Arc<Mutex<AppState>>,
+) {
+    let app_ui = app_ui.clone();
+    let app_state = app_state.clone();
+
     let open_action = gio::SimpleAction::new("open", None);
     open_action.connect_activate(glib::clone!(
         #[weak]
@@ -145,18 +170,6 @@ fn build_ui(app: &Application) {
         }
     ));
     app.add_action(&settings_action);
-
-    // Build a scrollable window
-    let scrollable_window = gtk::ScrolledWindow::builder()
-        .hscrollbar_policy(gtk::PolicyType::Never)
-        .vscrollbar_policy(gtk::PolicyType::Automatic)
-        .child(&vbox)
-        .build();
-
-    window.set_child(Some(&scrollable_window));
-
-    // Finalize
-    window.present();
 }
 
 fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> anyhow::Result<()> {
