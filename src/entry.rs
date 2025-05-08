@@ -29,7 +29,7 @@ impl DirEntry {
         }
     }
 
-    pub fn search(root: String) -> anyhow::Result<Vec<DirEntry>> {
+    pub fn search(root: &str) -> anyhow::Result<Vec<DirEntry>> {
         let max_depth = {
             let app_config = APP_CONFIG
                 .lock()
@@ -38,7 +38,7 @@ impl DirEntry {
         };
 
         let mut entries: Vec<DirEntry> = Vec::new();
-        let max_depth = count_depth(to_absolute(root.clone())?) + max_depth;
+        let max_depth = count_depth(to_absolute(root)?) + max_depth;
 
         let walker = WalkDir::new(root).into_iter();
 

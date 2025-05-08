@@ -170,7 +170,7 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> Result<()> 
         app_state_guard.original_dir.clone()
     };
 
-    let entries = entry::DirEntry::search(dir_path);
+    let entries = entry::DirEntry::search(&dir_path);
 
     match entries {
         Ok(dir_entries) => {
