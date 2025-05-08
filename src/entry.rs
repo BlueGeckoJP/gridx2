@@ -5,7 +5,6 @@ use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
-use rayon::prelude::*;
 use std::path;
 use std::path::Path;
 use walkdir::WalkDir;
