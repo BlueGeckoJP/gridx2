@@ -502,31 +502,26 @@ fn natural_sort(a: &str, b: &str) -> anyhow::Result<Ordering> {
         let a_part = a_parts[i];
         let b_part = b_parts[i];
 
-        if i >= a_parts.len() {
-            return Ok(Ordering::Less);
-        }
-        if i >= b_parts.len() {
-            return Ok(Ordering::Greater);
-        }
-
         if a_part == b_part {
             continue;
         }
 
-        return if re_num.is_match(a_part) {
-            if re_num.is_match(b_part) {
-                let a_num = a_part.parse::<i32>()?;
-                let b_num = b_part.parse::<i32>()?;
-                Ok(a_num.cmp(&b_num))
-            } else {
-                Ok(Ordering::Greater)
-            }
+        let order = if re_num.is_match(a_part) && re_num.is_match(b_part) {
+            let a_num = a_part.parse::<isize>().unwrap_or(0);
+            let b_num = b_part.parse::<isize>().unwrap_or(0);
+            a_num.cmp(&b_num)
+        } else if re_num.is_match(a_part) {
+            Ordering::Less
         } else if re_num.is_match(b_part) {
-            Ok(Ordering::Less)
+            Ordering::Greater
         } else {
-            Ok(a_part.cmp(b_part))
+            a_part.cmp(b_part)
         };
+
+        if order != Ordering::Equal {
+            return Ok(order);
+        }
     }
 
-    Ok(Ordering::Equal)
+    Ok(a_parts.len().cmp(&b_parts.len()))
 }
