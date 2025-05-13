@@ -20,7 +20,7 @@ impl ImageEntry {
 
         let thumbnail_size = {
             let app_config = APP_CONFIG
-                .lock()
+                .read()
                 .map_err(|_| anyhow!("Failed to lock app config"))?;
             app_config.thumbnail_size
         };

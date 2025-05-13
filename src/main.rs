@@ -27,12 +27,12 @@ use std::cmp::{min, Ordering};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::rc::Rc;
-use std::sync::{mpsc, Arc, LazyLock, Mutex};
+use std::sync::{mpsc, Arc, LazyLock, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
-static APP_CONFIG: LazyLock<Mutex<AppConfig>> =
-    LazyLock::new(|| Mutex::new(AppConfig::load().unwrap_or_default()));
+static APP_CONFIG: LazyLock<RwLock<AppConfig>> =
+    LazyLock::new(|| RwLock::new(AppConfig::load().unwrap_or_default()));
 static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Texture>>> =
     LazyLock::new(|| Mutex::new(LruCache::new(500)));
 
@@ -232,7 +232,7 @@ fn create_blank_accordion_widget(
     for _ in 0..count {
         let thumbnail_size = {
             let app_config = APP_CONFIG
-                .lock()
+                .read()
                 .map_err(|_| anyhow!("Failed to lock app config"))?;
             app_config.thumbnail_size
         } as i32;
@@ -459,7 +459,7 @@ fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> {
 fn open_with_xdg_open(image_path: String) -> anyhow::Result<()> {
     let mut open_command = {
         let app_config = APP_CONFIG
-            .lock()
+            .read()
             .map_err(|_| anyhow!("Failed to lock app config"))?;
         app_config.open_command.clone()
     };

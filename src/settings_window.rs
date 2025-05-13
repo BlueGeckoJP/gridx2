@@ -72,7 +72,7 @@ impl SettingsWindow {
 
         let current_config = {
             let config = APP_CONFIG
-                .lock()
+                .read()
                 .map_err(|_| anyhow::anyhow!("Failed to lock config"))?;
             config.clone()
         };
@@ -96,7 +96,7 @@ impl SettingsWindow {
             #[weak]
             command_entry,
             move |_| {
-                let mut config = match APP_CONFIG.lock() {
+                let mut config = match APP_CONFIG.write() {
                     Ok(config) => config,
                     Err(_) => return,
                 };

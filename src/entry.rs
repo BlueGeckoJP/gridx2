@@ -22,7 +22,7 @@ impl DirEntry {
     pub fn search(root: &str) -> anyhow::Result<Vec<DirEntry>> {
         let max_depth = {
             let app_config = APP_CONFIG
-                .lock()
+                .read()
                 .map_err(|_| anyhow!("Failed to lock app config"))?;
             app_config.max_depth
         };
