@@ -26,15 +26,15 @@ impl ImageEntry {
         };
 
         let cache_hit = {
-            let image_cache = match IMAGE_CACHE.lock() {
+            let mut image_cache = match IMAGE_CACHE.lock() {
                 Ok(cache) => cache,
                 Err(_) => return Err(anyhow!("Failed to lock image cache")),
             };
-            image_cache.get(&self.image_path).cloned()
+            image_cache.get_mut(&self.image_path).cloned()
         };
 
-        if let Some(texture) = cache_hit {
-            self.image = Some(texture.clone());
+        if cache_hit.is_some() {
+            self.image = cache_hit.clone();
             return Ok(());
         }
 
@@ -42,7 +42,7 @@ impl ImageEntry {
             self.image = Some(texture.clone());
 
             if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
-                image_cache.insert(&self.image_path, texture);
+                image_cache.insert(self.image_path.clone(), texture);
             }
         }
 

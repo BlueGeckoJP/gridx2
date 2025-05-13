@@ -1,25 +1,25 @@
 mod accordion_widget;
 mod app_config;
 mod entry;
-mod image_cache;
 mod image_entry;
 mod image_widget;
 mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
-use crate::image_cache::ImageCache;
 use crate::image_entry::ImageEntry;
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
 use anyhow::anyhow;
 use gtk4 as gtk;
+use gtk4::gdk::Texture;
 use gtk4::gio::Cancellable;
 use gtk4::prelude::{
     ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt,
     GtkApplicationExt, GtkWindowExt, WidgetExt,
 };
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
+use lru_cache::LruCache;
 use rayon::prelude::*;
 use regex::Regex;
 use std::cell::RefCell;
@@ -33,8 +33,8 @@ use std::time::Duration;
 
 static APP_CONFIG: LazyLock<Mutex<AppConfig>> =
     LazyLock::new(|| Mutex::new(AppConfig::load().unwrap_or_default()));
-static IMAGE_CACHE: LazyLock<Mutex<ImageCache>> =
-    LazyLock::new(|| Mutex::new(ImageCache::new(500)));
+static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Texture>>> =
+    LazyLock::new(|| Mutex::new(LruCache::new(500)));
 
 struct AppState {
     original_dir: String,
