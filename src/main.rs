@@ -321,14 +321,22 @@ async fn load_and_display_images(
 
     let (tx, rx) = mpsc::channel::<f64>();
     let (done_tx, done_rx) = mpsc::channel::<Vec<ImageEntry>>();
+    let (done_tx_check, done_rx_check) = mpsc::channel::<u8>();
 
     let accordion_widget_cloned = accordion_widget.clone();
     let loaded_entry = dir_entry_clone;
     let loaded_entry_clone = loaded_entry.clone();
 
-    spawn_image_loading_thread(&loaded_entry_clone, counter, total_images, tx, done_tx);
+    spawn_image_loading_thread(
+        &loaded_entry_clone,
+        counter,
+        total_images,
+        tx,
+        done_tx,
+        done_tx_check,
+    );
 
-    update_progress_bar(accordion_widget_cloned.clone(), rx).await;
+    update_progress_bar(accordion_widget_cloned.clone(), rx, done_rx_check).await;
 
     display_loaded_images(done_rx, accordion_widget_cloned, overlays).await;
 }
@@ -339,6 +347,7 @@ fn spawn_image_loading_thread(
     total_images: usize,
     tx: mpsc::Sender<f64>,
     done_tx: mpsc::Sender<Vec<ImageEntry>>,
+    done_tx_check: mpsc::Sender<u8>,
 ) {
     let mut loaded_entry_clone = loaded_entry_clone.clone();
 
@@ -370,19 +379,24 @@ fn spawn_image_loading_thread(
         show_cache_stats();
         let _ = tx.send(1.0);
         let _ = done_tx.send(loaded_entry_clone.image_entries.clone());
+        let _ = done_tx_check.send(0);
     });
 }
 
 async fn update_progress_bar(
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     rx: mpsc::Receiver<f64>,
+    done_rx_check: mpsc::Receiver<u8>,
 ) {
     while let Ok(progress) = rx.recv() {
+        if done_rx_check.try_recv().is_ok() {
+            break;
+        }
         accordion_widget
             .borrow()
             .progress_bar
             .set_fraction(progress);
-        glib::timeout_future(Duration::from_millis(10)).await;
+        glib::timeout_future(Duration::from_millis(1)).await;
     }
 }
 
