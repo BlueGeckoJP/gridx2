@@ -34,7 +34,7 @@ use std::time::Duration;
 
 static APP_CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().unwrap_or_default()));
-static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Texture>>> =
+static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Arc<Texture>>>> =
     LazyLock::new(|| Mutex::new(LruCache::new(NonZero::new(500).unwrap())));
 
 struct AppState {
@@ -406,7 +406,7 @@ async fn display_loaded_images(
     for (index, image_entry) in image_entries.iter().enumerate() {
         if let Some(img) = &image_entry.image {
             let mut image_widget = ImageWidget::new();
-            image_widget.set_image(&image_entry.image_path, img.clone());
+            image_widget.set_image(&image_entry.image_path, img.as_ref());
 
             let accordion_widget = accordion_widget.clone();
             let overlays = overlays.clone();

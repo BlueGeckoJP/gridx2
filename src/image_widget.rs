@@ -55,8 +55,8 @@ impl ImageWidget {
         self.picture.add_controller(click_gesture);
     }
 
-    pub fn set_image(&mut self, path: &str, texture: Texture) {
-        self.picture.set_paintable(Some(&texture));
+    pub fn set_image(&mut self, path: &str, texture: &Texture) {
+        self.picture.set_paintable(Some(texture));
         self.picture
             .set_size_request(texture.width(), texture.height());
         self.image_path.replace(Some(path.to_string()));

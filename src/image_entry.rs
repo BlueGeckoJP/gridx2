@@ -5,11 +5,12 @@ use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ImageEntry {
     pub image_path: String,
-    pub image: Option<Texture>,
+    pub image: Option<Arc<Texture>>,
 }
 
 impl ImageEntry {
@@ -39,6 +40,7 @@ impl ImageEntry {
         }
 
         if let Ok(texture) = self.load_and_resize_image(thumbnail_size) {
+            let texture = Arc::new(texture);
             self.image = Some(texture.clone());
 
             if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
