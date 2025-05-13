@@ -19,11 +19,12 @@ use gtk4::prelude::{
     GtkApplicationExt, GtkWindowExt, WidgetExt,
 };
 use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
-use lru_cache::LruCache;
+use lru::LruCache;
 use rayon::prelude::*;
 use regex::Regex;
 use std::cell::RefCell;
 use std::cmp::{min, Ordering};
+use std::num::NonZero;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::rc::Rc;
@@ -34,7 +35,7 @@ use std::time::Duration;
 static APP_CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().unwrap_or_default()));
 static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Texture>>> =
-    LazyLock::new(|| Mutex::new(LruCache::new(500)));
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZero::new(500).unwrap())));
 
 struct AppState {
     original_dir: String,

@@ -30,7 +30,7 @@ impl ImageEntry {
                 Ok(cache) => cache,
                 Err(_) => return Err(anyhow!("Failed to lock image cache")),
             };
-            image_cache.get_mut(&self.image_path).cloned()
+            image_cache.get(&self.image_path).cloned()
         };
 
         if cache_hit.is_some() {
@@ -42,7 +42,7 @@ impl ImageEntry {
             self.image = Some(texture.clone());
 
             if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
-                image_cache.insert(self.image_path.clone(), texture);
+                image_cache.put(self.image_path.clone(), texture);
             }
         }
 
