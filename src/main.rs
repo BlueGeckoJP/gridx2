@@ -7,7 +7,7 @@ mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
-use crate::image_entry::ImageEntry;
+use crate::image_entry::{clear_cache, show_cache_stats, ImageEntry};
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
 use anyhow::anyhow;
@@ -343,6 +343,8 @@ fn spawn_image_loading_thread(
     let mut loaded_entry_clone = loaded_entry_clone.clone();
 
     thread::spawn(move || {
+        clear_cache();
+
         loaded_entry_clone
             .image_entries
             .par_iter_mut()
@@ -365,6 +367,7 @@ fn spawn_image_loading_thread(
                 let _ = tx.send(progress);
             });
 
+        show_cache_stats();
         let _ = tx.send(1.0);
         let _ = done_tx.send(loaded_entry_clone.image_entries.clone());
     });
