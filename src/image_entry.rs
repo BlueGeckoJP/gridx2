@@ -121,7 +121,8 @@ pub fn show_cache_stats() {
     let total = hits + misses;
 
     if total > 0 {
-        let hit_rate = (hits as f64 / total as f64) * 100.0;
+        let hits_percent = (hits as f64 / total as f64) * 100.0;
+
         let avg_disk_time = if misses > 0 {
             DISK_LOAD_TIME_MS.load(Ordering::Relaxed) as f64 / misses as f64
         } else {
@@ -129,27 +130,16 @@ pub fn show_cache_stats() {
         };
 
         let cache_time_ns = CACHE_ACCESS_TIME_NS.load(Ordering::Relaxed);
-        let avg_cache_time_ms = if hits > 0 {
-            (cache_time_ns as f64 / total as f64) / 1_000_000.0
-        } else {
-            0.0
-        };
+        let avg_cache_time_ns = cache_time_ns as f64 / total as f64;
+        let avg_cache_time_ms = avg_cache_time_ns / 1_000_000.0;
 
         println!("\nCache stats:");
         println!("Total accesses: {total}");
-        println!("Cache hits: {hits} ({hit_rate}%)");
+        println!("Cache hits: {hits} ({hits_percent:.2}%)");
         println!("Cache misses: {misses}");
-        println!("Average disk load time: {avg_disk_time:.2}ms");
+        println!("Average disk read time: {avg_disk_time:.2}ms");
         println!(
-            "Average cache access time: {avg_cache_time_ms:.6}ms ({}ns)",
-            cache_time_ns / total
+            "Average cache access time: {avg_cache_time_ms:.2}ms (total {avg_cache_time_ns:.2}ns)"
         );
-
-        if avg_cache_time_ms > 0.0 {
-            println!(
-                "Theoretical speed up: {:.2}times",
-                avg_disk_time / avg_cache_time_ms
-            );
-        }
     }
 }
