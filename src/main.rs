@@ -35,7 +35,7 @@ use std::time::Duration;
 static APP_CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().unwrap_or_default()));
 static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Arc<Texture>>>> =
-    LazyLock::new(|| Mutex::new(LruCache::new(NonZero::new(500).unwrap())));
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZero::new(1000).unwrap())));
 
 struct AppState {
     original_dir: String,
