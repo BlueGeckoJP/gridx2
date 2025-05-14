@@ -377,7 +377,6 @@ fn spawn_image_loading_thread(
             });
 
         show_cache_stats();
-        let _ = tx.send(1.0);
         let _ = done_tx.send(loaded_entry_clone.image_entries.clone());
         let _ = done_tx_check.send(0);
     });
@@ -390,6 +389,7 @@ async fn update_progress_bar(
 ) {
     while let Ok(progress) = rx.recv() {
         if done_rx_check.try_recv().is_ok() {
+            accordion_widget.borrow().progress_bar.set_fraction(1.0);
             break;
         }
         accordion_widget
