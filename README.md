@@ -50,7 +50,7 @@ cargo build --release
 
 Please refer to the decoding section below for the supported image formats.
 
-<https://github.com/image-rs/image?tab=readme-ov-file#supported-image-formats>
+[Supported Image Formats](https://github.com/image-rs/image?tab=readme-ov-file#supported-image-formats)
 
 ## Performance Features
 
