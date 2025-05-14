@@ -61,4 +61,4 @@ Please refer to the decoding section below for the supported image formats.
 
 ## License
 
-unimplemented!("");
+This project is open source and available under the [MIT License](https://github.com/BlueGeckoJP/gridx2/blob/master/LICENSE).
