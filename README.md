@@ -62,3 +62,7 @@ Please refer to the decoding section below for the supported image formats.
 ## License
 
 This project is open source and available under the [MIT License](https://github.com/BlueGeckoJP/gridx2/blob/master/LICENSE).
+
+## Screenshots
+
+![Screenshot 1](./etc/screenshots/1.png)
