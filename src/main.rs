@@ -7,7 +7,7 @@ mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::AppConfig;
-use crate::image_entry::{clear_cache, show_cache_stats, ImageEntry};
+use crate::image_entry::{ImageEntry, clear_cache, show_cache_stats};
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
 use anyhow::anyhow;
@@ -18,17 +18,17 @@ use gtk4::prelude::{
     ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt,
     GtkApplicationExt, GtkWindowExt, WidgetExt,
 };
-use gtk4::{gdk, gio, glib, Application, ApplicationWindow, CssProvider, FileDialog};
+use gtk4::{Application, ApplicationWindow, CssProvider, FileDialog, gdk, gio, glib};
 use lru::LruCache;
 use rayon::prelude::*;
 use regex::Regex;
 use std::cell::RefCell;
-use std::cmp::{min, Ordering};
+use std::cmp::{Ordering, min};
 use std::num::NonZero;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::rc::Rc;
-use std::sync::{mpsc, Arc, LazyLock, Mutex, RwLock};
+use std::sync::{Arc, LazyLock, Mutex, RwLock, mpsc};
 use std::thread;
 use std::time::Duration;
 
@@ -138,16 +138,16 @@ fn build_action(
             let app_ui = app_ui.clone();
             let app_state = app_state.clone();
             dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
-                if let Ok(path) = result {
-                    if let Some(dir) = path.path() {
-                        let mut app_state_guard = app_state.lock().unwrap();
-                        app_state_guard.original_dir = dir.to_str().unwrap().to_string();
-                        let app_state = app_state.clone();
-                        glib::spawn_future_local(async move {
-                            update_entry(app_state.clone(), &app_ui.borrow().top_vbox)
-                                .expect("Failed to update entry");
-                        });
-                    }
+                if let Ok(path) = result
+                    && let Some(dir) = path.path()
+                {
+                    let mut app_state_guard = app_state.lock().unwrap();
+                    app_state_guard.original_dir = dir.to_str().unwrap().to_string();
+                    let app_state = app_state.clone();
+                    glib::spawn_future_local(async move {
+                        update_entry(app_state.clone(), &app_ui.borrow().top_vbox)
+                            .expect("Failed to update entry");
+                    });
                 }
             });
         }

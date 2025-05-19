@@ -2,6 +2,8 @@ use gtk4 as gtk;
 use gtk4::prelude::{BoxExt, ObjectExt, WidgetExt};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
+use crate::APP_CONFIG;
+
 pub struct AccordionWidget {
     pub widget: gtk::Box,
     pub expander: Expander,
@@ -18,6 +20,13 @@ impl AccordionWidget {
 
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
+
+        if let Ok(app_config) = APP_CONFIG.read() {
+            match app_config.dark_mode.unwrap_or(true) {
+                true => vbox.add_css_class("dark-mode"),
+                false => vbox.add_css_class("light-mode"),
+            }
+        }
 
         let progress_bar = ProgressBar::new();
         progress_bar.set_visible(false);

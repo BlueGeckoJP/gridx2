@@ -1,12 +1,18 @@
 .expander-box {
-    background-color: #474747;
-    padding: 4px;
+  padding: 4px;
 }
 
 .expander-title {
-    font-size: 1.2em;
-    font-weight: bold;
+  font-size: 1.2em;
+  font-weight: bold;
 
-    background-color: #474747;
-    padding: 4px 8px 4px 4px;
+  padding: 4px 8px 4px 4px;
+}
+
+.dark-mode {
+  background-color: oklch(0.3979 0 0);
+}
+
+.light-mode {
+  background-color: oklch(0.9021 0 0);
 }
