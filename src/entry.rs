@@ -1,5 +1,5 @@
-use crate::image_entry::ImageEntry;
 use crate::APP_CONFIG;
+use crate::image_entry::ImageEntry;
 use anyhow::anyhow;
 use std::path;
 use std::path::Path;
@@ -94,10 +94,13 @@ fn to_absolute<T: AsRef<Path>>(path: T) -> anyhow::Result<String> {
 }
 
 fn is_image<T: AsRef<Path>>(path: T) -> bool {
-    let supported_extensions: [String; 3] = ["png".into(), "jpg".into(), "jpeg".into()];
+    let supported_extensions: [&str; 20] = [
+        "avif", "bmp", "dds", "ff", "gif", "hdr", "ico", "jpg", "jpeg", "jfif", "exr", "png",
+        "pbm", "pgm", "ppm", "qoi", "tga", "tif", "tiff", "webp",
+    ];
     let ext = path.as_ref().extension();
     if let Some(ext) = ext {
-        supported_extensions.contains(&ext.to_string_lossy().to_string())
+        supported_extensions.contains(&ext.to_string_lossy().as_ref())
     } else {
         false
     }
