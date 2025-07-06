@@ -1,5 +1,7 @@
-use gtk4 as gtk;
-use gtk4::prelude::{BoxExt, ObjectExt, WidgetExt};
+use std::rc::Rc;
+
+use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
+use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
 use crate::APP_CONFIG;
@@ -9,6 +11,7 @@ pub struct AccordionWidget {
     pub expander: Expander,
     pub flow_box: FlowBox,
     pub progress_bar: ProgressBar,
+    pub close_button: Rc<gtk::Button>,
 }
 
 impl AccordionWidget {
@@ -31,21 +34,36 @@ impl AccordionWidget {
         let progress_bar = ProgressBar::new();
         progress_bar.set_visible(false);
 
+        let close_button = gtk::Button::with_label("Close");
+        close_button.add_css_class("close-button");
+        close_button.connect_clicked(glib::clone!(
+            #[weak]
+            expander,
+            move |_: &gtk4::Button| {
+                expander.set_expanded(false);
+            }
+        ));
+        close_button.set_visible(false);
+
         vbox.append(&progress_bar);
         vbox.append(&expander);
+        vbox.append(&close_button);
 
         Self {
             widget: vbox,
             expander,
             flow_box,
             progress_bar,
+            close_button: Rc::new(close_button),
         }
     }
 
     pub fn connect_expanded<F: Fn(bool) + 'static>(&self, callback: F) {
+        let close_button = self.close_button.clone();
         self.expander
             .connect_notify_local(Some("expanded"), move |expander, _| {
                 let is_expanded = expander.is_expanded();
+                close_button.set_visible(is_expanded);
                 callback(is_expanded);
             });
     }
