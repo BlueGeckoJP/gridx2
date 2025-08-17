@@ -436,7 +436,7 @@ async fn display_loaded_images(
                 }
             });
 
-            if index % 5 == 0 {
+            if index.is_multiple_of(5) {
                 glib::timeout_future(Duration::from_millis(10)).await;
             }
         }
