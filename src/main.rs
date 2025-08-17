@@ -179,10 +179,16 @@ fn update_entry(app_state: Arc<Mutex<AppState>>, vbox: &gtk::Box) -> anyhow::Res
     let (original_dir, entries_indies) = search_and_prepare_entries(app_state.clone())?;
 
     for (index, entry) in entries_indies.iter().enumerate() {
+        let title = format!(
+            "{} | {} entries",
+            get_relative_path(&original_dir, &entry.dir_path)?,
+            entry.image_entries.len()
+        );
+
         create_blank_accordion_widget(
             vbox,
             entry.image_entries.len(),
-            &get_relative_path(&original_dir, &entry.dir_path)?,
+            &title,
             index,
             app_state.clone(),
         )?;
