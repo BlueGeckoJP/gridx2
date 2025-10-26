@@ -11,13 +11,13 @@ use crate::image_entry::{ImageEntry, clear_cache, show_cache_stats};
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
 use anyhow::anyhow;
-use gtk4 as gtk;
 use gtk4::gdk::Texture;
 use gtk4::gio::Cancellable;
 use gtk4::prelude::{
-    ActionMapExt, ApplicationExt, ApplicationExtManual, ApplicationWindowExt, BoxExt, FileExt,
-    GtkApplicationExt, GtkWindowExt, WidgetExt,
+    ActionMapExt, ActionableExt, ApplicationExt, ApplicationExtManual, BoxExt, ButtonExt, FileExt,
+    GtkWindowExt, WidgetExt,
 };
+use gtk4::{self as gtk, Button, HeaderBar};
 use gtk4::{Application, ApplicationWindow, CssProvider, FileDialog, gdk, gio, glib};
 use lru::LruCache;
 use rayon::prelude::*;
@@ -93,17 +93,24 @@ fn build_ui(app: &Application) {
         top_vbox: vbox.clone(),
     }));
 
-    // Build menubar
-    let menubar = gio::Menu::new();
+    // Build header bar
+    let header_bar = HeaderBar::new();
+    header_bar.set_title_widget(Some(&gtk::Label::new(Some("gridx2"))));
 
-    let file_menu = gio::Menu::new();
-    file_menu.append(Some("Open Folder"), Some("app.open"));
-    file_menu.append(Some("Open Settings"), Some("app.settings"));
+    let button_open = Button::new();
+    let icon_open = gtk::Image::from_icon_name("document-open-symbolic");
+    button_open.set_child(Some(&icon_open));
+    button_open.set_action_name(Some("app.open"));
 
-    menubar.append_submenu(Some("File"), &file_menu);
+    let button_settings = Button::new();
+    let icon_settings = gtk::Image::from_icon_name("preferences-system-symbolic");
+    button_settings.set_child(Some(&icon_settings));
+    button_settings.set_action_name(Some("app.settings"));
 
-    app.set_menubar(Some(&menubar));
-    window.set_show_menubar(true);
+    header_bar.pack_start(&button_open);
+    header_bar.pack_end(&button_settings);
+
+    window.set_titlebar(Some(&header_bar));
 
     // Build actions
     build_action(app, &window, &app_ui, &app_state);
