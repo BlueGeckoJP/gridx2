@@ -6,7 +6,7 @@ mod image_widget;
 mod settings_window;
 
 use crate::accordion_widget::AccordionWidget;
-use crate::app_config::AppConfig;
+use crate::app_config::{AppConfig, SortOrder};
 use crate::image_entry::{ImageEntry, clear_cache, show_cache_stats};
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
@@ -414,10 +414,25 @@ async fn display_loaded_images(
     let image_entries = match done_rx.recv() {
         Ok(image_entries) => {
             let mut sorted_entries = image_entries.clone();
-            sorted_entries.sort_by(|a, b| {
-                natural_sort(a.image_path.as_str(), b.image_path.as_str())
-                    .unwrap_or(Ordering::Equal)
-            });
+            let sort_order = {
+                if let Ok(app_config) = APP_CONFIG.read() {
+                    app_config.sort_order.unwrap_or(SortOrder::Name)
+                } else {
+                    SortOrder::Name
+                }
+            };
+
+            match sort_order {
+                SortOrder::Name => sorted_entries.sort_by(|a, b| {
+                    natural_sort(a.image_path.as_str(), b.image_path.as_str())
+                        .unwrap_or(Ordering::Equal)
+                }),
+                SortOrder::UpdatedAt => sorted_entries.sort_by(|a, b| {
+                    sort_by_updated_at(a.image_path.as_str(), b.image_path.as_str())
+                        .unwrap_or(Ordering::Equal)
+                }),
+            }
+
             sorted_entries
         }
         Err(e) => {
@@ -513,6 +528,16 @@ fn open_with_xdg_open(image_path: String) -> anyhow::Result<()> {
     cmd.spawn()?;
 
     Ok(())
+}
+
+fn sort_by_updated_at(a: &str, b: &str) -> anyhow::Result<Ordering> {
+    let a_metadata = std::fs::metadata(a)?;
+    let b_metadata = std::fs::metadata(b)?;
+
+    let a_modified = a_metadata.modified()?;
+    let b_modified = b_metadata.modified()?;
+
+    Ok(b_modified.cmp(&a_modified))
 }
 
 fn natural_sort(a: &str, b: &str) -> anyhow::Result<Ordering> {

@@ -3,6 +3,17 @@ use gtk4::glib::object::ObjectExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use strum_macros::{Display, EnumString};
+
+pub const SORT_ORDER_VARIANTS: &[&str] = &["name", "updated_at"];
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SortOrder {
+    Name,
+    UpdatedAt,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AppConfig {
@@ -10,6 +21,7 @@ pub struct AppConfig {
     pub thumbnail_size: u32,
     pub open_command: Vec<String>,
     pub dark_mode: Option<bool>,
+    pub sort_order: Option<SortOrder>,
 }
 
 impl Default for AppConfig {
@@ -19,6 +31,7 @@ impl Default for AppConfig {
             thumbnail_size: 200,
             open_command: vec!["xdg-open".into(), "<path>".into()], // the actual path is assigned to <path>
             dark_mode: Some(true),
+            sort_order: Some("name".parse().unwrap()),
         }
     }
 }

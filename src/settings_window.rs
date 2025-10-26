@@ -1,7 +1,9 @@
 use crate::APP_CONFIG;
-use gtk4 as gtk;
+use crate::app_config::SORT_ORDER_VARIANTS;
+use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
-use gtk4::{glib, Adjustment, ApplicationWindow, SpinButton};
+use gtk4::{self as gtk, gio::ListStore};
+use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
 
 pub struct SettingsWindow {
     window: ApplicationWindow,
@@ -61,6 +63,35 @@ impl SettingsWindow {
         let hint_label = gtk::Label::new(Some("Hint: the actual path is assigned to <path>"));
         hint_label.set_halign(gtk::Align::Start);
         vbox.append(&hint_label);
+
+        let sort_order_model = ListStore::new::<gtk::StringObject>();
+        for order in SORT_ORDER_VARIANTS {
+            let item = gtk::StringObject::new(order);
+            sort_order_model.append(&item);
+        }
+
+        let sort_order_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        let sort_order_label = gtk::Label::new(Some("Sort order:"));
+        sort_order_label.set_halign(gtk::Align::Start);
+
+        let sort_order_dropdown = DropDown::from_strings(SORT_ORDER_VARIANTS);
+        sort_order_dropdown.set_hexpand(true);
+        sort_order_dropdown.connect_selected_notify(|dropdown| {
+            if let Some(selected) = dropdown.selected_item()
+                && let Some(string_obj) = selected.downcast_ref::<gtk::StringObject>()
+            {
+                let selected_value = string_obj.string();
+                let mut config = match APP_CONFIG.write() {
+                    Ok(config) => config,
+                    Err(_) => return,
+                };
+                config.sort_order = Some(selected_value.parse().unwrap());
+            }
+        });
+
+        sort_order_box.append(&sort_order_label);
+        sort_order_box.append(&sort_order_dropdown);
+        vbox.append(&sort_order_box);
 
         let button_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         let button_save = gtk::Button::with_label("Save");
