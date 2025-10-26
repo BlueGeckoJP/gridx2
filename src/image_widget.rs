@@ -1,8 +1,8 @@
 use crate::open_with_xdg_open;
 use gtk4 as gtk;
+use gtk4::Picture;
 use gtk4::gdk::Texture;
 use gtk4::prelude::{BoxExt, TextureExt, WidgetExt};
-use gtk4::Picture;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -46,8 +46,8 @@ impl ImageWidget {
             let image_path = image_path.clone();
             if let Some(path) = image_path {
                 let err = open_with_xdg_open(path);
-                if err.is_err() {
-                    println!("Failed to open image: {}", err.unwrap_err());
+                if let Err(e) = err {
+                    println!("Failed to open image: {}", e);
                 }
             }
         });
