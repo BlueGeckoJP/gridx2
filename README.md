@@ -65,4 +65,6 @@ This project is open source and available under the [MIT License](https://github
 
 ## Screenshots
 
-![Screenshot 1](./etc/screenshots/1.png)
+The blurred background is due to the environment in which the screenshot was taken. There is no blur feature.
+
+![Screenshot 2](./screenshots/2.png)
