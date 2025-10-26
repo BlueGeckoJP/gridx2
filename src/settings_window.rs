@@ -76,22 +76,18 @@ impl SettingsWindow {
 
         let sort_order_dropdown = DropDown::from_strings(SORT_ORDER_VARIANTS);
         sort_order_dropdown.set_hexpand(true);
-        sort_order_dropdown.connect_selected_notify(|dropdown| {
-            if let Some(selected) = dropdown.selected_item()
-                && let Some(string_obj) = selected.downcast_ref::<gtk::StringObject>()
-            {
-                let selected_value = string_obj.string();
-                let mut config = match APP_CONFIG.write() {
-                    Ok(config) => config,
-                    Err(_) => return,
-                };
-                config.sort_order = Some(selected_value.parse().unwrap());
-            }
-        });
 
         sort_order_box.append(&sort_order_label);
         sort_order_box.append(&sort_order_dropdown);
         vbox.append(&sort_order_box);
+
+        let descending_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        let descending_label = gtk::Label::new(Some("Descending Order:"));
+        let descending_switch = gtk::Switch::new();
+
+        descending_box.append(&descending_label);
+        descending_box.append(&descending_switch);
+        vbox.append(&descending_box);
 
         let button_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         let button_save = gtk::Button::with_label("Save");
@@ -110,6 +106,19 @@ impl SettingsWindow {
         max_depth_spin.set_value(current_config.max_depth as f64);
         thumbnail_spin.set_value(current_config.thumbnail_size as f64);
         command_entry.set_text(&current_config.open_command.join(" "));
+        sort_order_dropdown.set_selected(
+            current_config
+                .sort_order
+                .and_then(|order| {
+                    let order_str = order.to_string();
+                    SORT_ORDER_VARIANTS
+                        .iter()
+                        .position(|&variant| variant == order_str)
+                        .map(|pos| pos as u32)
+                })
+                .unwrap_or(0),
+        );
+        descending_switch.set_active(current_config.descending.unwrap_or(false));
 
         button_cancel.connect_clicked(glib::clone!(
             #[weak]
@@ -126,6 +135,10 @@ impl SettingsWindow {
             thumbnail_spin,
             #[weak]
             command_entry,
+            #[weak]
+            sort_order_dropdown,
+            #[weak]
+            descending_switch,
             move |_| {
                 let mut config = match APP_CONFIG.write() {
                     Ok(config) => config,
@@ -139,6 +152,11 @@ impl SettingsWindow {
                     .split_whitespace()
                     .map(|s| s.to_string())
                     .collect();
+                config.sort_order = sort_order_dropdown.selected_item().and_then(|item| {
+                    item.downcast_ref::<gtk::StringObject>()
+                        .map(|s| s.string().parse().unwrap())
+                });
+                config.descending = Some(descending_switch.is_active());
 
                 if let Err(e) = config.save() {
                     eprintln!("Failed to save config: {e}");

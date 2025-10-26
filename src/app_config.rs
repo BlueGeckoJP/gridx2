@@ -22,6 +22,7 @@ pub struct AppConfig {
     pub open_command: Vec<String>,
     pub dark_mode: Option<bool>,
     pub sort_order: Option<SortOrder>,
+    pub descending: Option<bool>,
 }
 
 impl Default for AppConfig {
@@ -32,6 +33,7 @@ impl Default for AppConfig {
             open_command: vec!["xdg-open".into(), "<path>".into()], // the actual path is assigned to <path>
             dark_mode: Some(true),
             sort_order: Some("name".parse().unwrap()),
+            descending: Some(false),
         }
     }
 }

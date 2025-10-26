@@ -36,6 +36,8 @@ static APP_CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().unwrap_or_default()));
 static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Arc<Texture>>>> =
     LazyLock::new(|| Mutex::new(LruCache::new(NonZero::new(5000).unwrap())));
+static NATURAL_SORT_RE_ALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)|(\D+)").unwrap());
+static NATURAL_SORT_RE_NUM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").unwrap());
 
 struct AppState {
     original_dir: String,
@@ -422,13 +424,21 @@ async fn display_loaded_images(
                 }
             };
 
+            let descending = {
+                if let Ok(app_config) = APP_CONFIG.read() {
+                    app_config.descending.unwrap_or(false)
+                } else {
+                    false
+                }
+            };
+
             match sort_order {
                 SortOrder::Name => sorted_entries.sort_by(|a, b| {
-                    natural_sort(a.image_path.as_str(), b.image_path.as_str())
+                    natural_sort(a.image_path.as_str(), b.image_path.as_str(), descending)
                         .unwrap_or(Ordering::Equal)
                 }),
                 SortOrder::UpdatedAt => sorted_entries.sort_by(|a, b| {
-                    sort_by_updated_at(a.image_path.as_str(), b.image_path.as_str())
+                    sort_by_updated_at(a.image_path.as_str(), b.image_path.as_str(), descending)
                         .unwrap_or(Ordering::Equal)
                 }),
             }
@@ -530,22 +540,28 @@ fn open_with_xdg_open(image_path: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn sort_by_updated_at(a: &str, b: &str) -> anyhow::Result<Ordering> {
+fn sort_by_updated_at(a: &str, b: &str, descending: bool) -> anyhow::Result<Ordering> {
     let a_metadata = std::fs::metadata(a)?;
     let b_metadata = std::fs::metadata(b)?;
 
     let a_modified = a_metadata.modified()?;
     let b_modified = b_metadata.modified()?;
 
-    Ok(b_modified.cmp(&a_modified))
+    Ok(match descending {
+        true => a_modified.cmp(&b_modified),
+        false => b_modified.cmp(&a_modified),
+    })
 }
 
-fn natural_sort(a: &str, b: &str) -> anyhow::Result<Ordering> {
-    let re_all = Regex::new(r"(\d+)|(\D+)")?;
-    let re_num = Regex::new(r"^\d+$")?;
-
-    let a_parts: Vec<&str> = re_all.find_iter(a).map(|m| m.as_str()).collect();
-    let b_parts: Vec<&str> = re_all.find_iter(b).map(|m| m.as_str()).collect();
+fn natural_sort(a: &str, b: &str, descending: bool) -> anyhow::Result<Ordering> {
+    let a_parts: Vec<&str> = NATURAL_SORT_RE_ALL
+        .find_iter(a)
+        .map(|m| m.as_str())
+        .collect();
+    let b_parts: Vec<&str> = NATURAL_SORT_RE_ALL
+        .find_iter(b)
+        .map(|m| m.as_str())
+        .collect();
 
     for i in 0..min(a_parts.len(), b_parts.len()) {
         let a_part = a_parts[i];
@@ -555,22 +571,30 @@ fn natural_sort(a: &str, b: &str) -> anyhow::Result<Ordering> {
             continue;
         }
 
-        let order = if re_num.is_match(a_part) && re_num.is_match(b_part) {
+        let order = if NATURAL_SORT_RE_NUM.is_match(a_part) && NATURAL_SORT_RE_NUM.is_match(b_part)
+        {
             let a_num = a_part.parse::<isize>().unwrap_or(0);
             let b_num = b_part.parse::<isize>().unwrap_or(0);
             a_num.cmp(&b_num)
-        } else if re_num.is_match(a_part) {
+        } else if NATURAL_SORT_RE_NUM.is_match(a_part) {
             Ordering::Less
-        } else if re_num.is_match(b_part) {
+        } else if NATURAL_SORT_RE_NUM.is_match(b_part) {
             Ordering::Greater
         } else {
             a_part.cmp(b_part)
         };
 
         if order != Ordering::Equal {
-            return Ok(order);
+            return Ok(match descending {
+                true => order.reverse(),
+                false => order,
+            });
         }
     }
 
-    Ok(a_parts.len().cmp(&b_parts.len()))
+    let order = a_parts.len().cmp(&b_parts.len());
+    Ok(match descending {
+        true => order.reverse(),
+        false => order,
+    })
 }
