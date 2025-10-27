@@ -53,7 +53,7 @@ impl AppConfig {
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
-        let found = Self::get_exist_path()?;
+        let found = Self::get_save_path()?;
 
         let content = toml::to_string(self)?;
         fs::write(found, content)?;
@@ -61,11 +61,14 @@ impl AppConfig {
         Ok(())
     }
 
-    fn get_exist_path() -> anyhow::Result<PathBuf> {
+    fn get_save_path() -> anyhow::Result<PathBuf> {
         let home_path = home::home_dir().ok_or(anyhow::anyhow!("No home directory found"))?;
         let save_path = home_path.join(".gridx2.toml");
+        Ok(save_path)
+    }
 
-        let path = save_path.canonicalize()?;
+    fn get_exist_path() -> anyhow::Result<PathBuf> {
+        let path = Self::get_save_path()?.canonicalize()?;
         if path.exists() {
             return Ok(path);
         }
