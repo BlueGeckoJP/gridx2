@@ -124,7 +124,7 @@ fn build_action(
     app.add_action(&settings_action);
 }
 
-fn create_blank_accordion_widget(
+pub fn create_blank_accordion_widget(
     vbox: &gtk::Box,
     count: usize,
     title: &str,
