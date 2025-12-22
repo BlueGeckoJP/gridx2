@@ -4,12 +4,14 @@ mod entry;
 mod image_entry;
 mod image_widget;
 mod settings_window;
+mod utils;
 
 use crate::accordion_widget::AccordionWidget;
 use crate::app_config::{AppConfig, SortOrder};
 use crate::image_entry::{ImageEntry, clear_cache, show_cache_stats};
 use crate::image_widget::ImageWidget;
 use crate::settings_window::SettingsWindow;
+use crate::utils::natural_sort;
 use anyhow::anyhow;
 use gtk4::gdk::Texture;
 use gtk4::gio::Cancellable;
@@ -21,9 +23,8 @@ use gtk4::{self as gtk, Button, HeaderBar};
 use gtk4::{Application, ApplicationWindow, CssProvider, FileDialog, gdk, gio, glib};
 use lru::LruCache;
 use rayon::prelude::*;
-use regex::Regex;
 use std::cell::RefCell;
-use std::cmp::{Ordering, min};
+use std::cmp::Ordering;
 use std::num::NonZero;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -36,8 +37,6 @@ static APP_CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().unwrap_or_default()));
 static IMAGE_CACHE: LazyLock<Mutex<LruCache<String, Arc<Texture>>>> =
     LazyLock::new(|| Mutex::new(LruCache::new(NonZero::new(5000).unwrap())));
-static NATURAL_SORT_RE_ALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)|(\D+)").unwrap());
-static NATURAL_SORT_RE_NUM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").unwrap());
 
 struct AppState {
     original_dir: String,
@@ -557,51 +556,5 @@ fn sort_by_updated_at(a: &str, b: &str, descending: bool) -> anyhow::Result<Orde
     Ok(match descending {
         true => a_modified.cmp(&b_modified),
         false => b_modified.cmp(&a_modified),
-    })
-}
-
-fn natural_sort(a: &str, b: &str, descending: bool) -> anyhow::Result<Ordering> {
-    let a_parts: Vec<&str> = NATURAL_SORT_RE_ALL
-        .find_iter(a)
-        .map(|m| m.as_str())
-        .collect();
-    let b_parts: Vec<&str> = NATURAL_SORT_RE_ALL
-        .find_iter(b)
-        .map(|m| m.as_str())
-        .collect();
-
-    for i in 0..min(a_parts.len(), b_parts.len()) {
-        let a_part = a_parts[i];
-        let b_part = b_parts[i];
-
-        if a_part == b_part {
-            continue;
-        }
-
-        let order = if NATURAL_SORT_RE_NUM.is_match(a_part) && NATURAL_SORT_RE_NUM.is_match(b_part)
-        {
-            let a_num = a_part.parse::<isize>().unwrap_or(0);
-            let b_num = b_part.parse::<isize>().unwrap_or(0);
-            a_num.cmp(&b_num)
-        } else if NATURAL_SORT_RE_NUM.is_match(a_part) {
-            Ordering::Less
-        } else if NATURAL_SORT_RE_NUM.is_match(b_part) {
-            Ordering::Greater
-        } else {
-            a_part.cmp(b_part)
-        };
-
-        if order != Ordering::Equal {
-            return Ok(match descending {
-                true => order.reverse(),
-                false => order,
-            });
-        }
-    }
-
-    let order = a_parts.len().cmp(&b_parts.len());
-    Ok(match descending {
-        true => order.reverse(),
-        false => order,
     })
 }
