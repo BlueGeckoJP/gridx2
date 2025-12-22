@@ -1,10 +1,11 @@
-use crate::open_with_xdg_open;
 use gtk4 as gtk;
 use gtk4::Picture;
 use gtk4::gdk::Texture;
 use gtk4::prelude::{BoxExt, TextureExt, WidgetExt};
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use crate::file_utils::open_with_xdg_open;
 
 #[derive(Clone)]
 pub struct ImageWidget {

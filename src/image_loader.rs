@@ -14,9 +14,9 @@ use crate::{
     accordion_widget::AccordionWidget,
     app_config::SortOrder,
     entry,
+    file_utils::sort_by_updated_at,
     image_entry::{ImageEntry, clear_cache, show_cache_stats},
     image_widget::ImageWidget,
-    sort_by_updated_at,
     utils::natural_sort,
 };
 
