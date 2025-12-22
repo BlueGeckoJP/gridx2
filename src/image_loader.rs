@@ -20,7 +20,7 @@ use crate::{
     utils::natural_sort,
 };
 
-pub async fn display_loaded_images(
+async fn display_loaded_images(
     done_rx: mpsc::Receiver<Vec<ImageEntry>>,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,

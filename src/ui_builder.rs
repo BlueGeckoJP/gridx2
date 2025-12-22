@@ -70,7 +70,7 @@ pub fn build_ui(app: &Application) {
     window.present();
 }
 
-pub fn build_action(
+fn build_action(
     app: &Application,
     window: &ApplicationWindow,
     app_ui: &Rc<RefCell<AppUI>>,
@@ -124,7 +124,7 @@ pub fn build_action(
     app.add_action(&settings_action);
 }
 
-pub fn create_blank_accordion_widget(
+fn create_blank_accordion_widget(
     vbox: &gtk::Box,
     count: usize,
     title: &str,
