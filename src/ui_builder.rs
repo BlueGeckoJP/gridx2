@@ -9,8 +9,9 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use crate::accordion_widget::AccordionWidget;
+use crate::image_loader::load_and_display_images;
 use crate::settings_window::SettingsWindow;
-use crate::{APP_CONFIG, AppState, AppUI, load_and_display_images, load_css, update_entry};
+use crate::{APP_CONFIG, AppState, AppUI, load_css, update_entry};
 
 pub fn build_ui(app: &Application) {
     load_css();
