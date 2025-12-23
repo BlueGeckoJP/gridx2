@@ -1,4 +1,4 @@
-use crate::{AppState, app_config::AppConfig, entry};
+use crate::{entry, state::app_config::AppConfig, state::app_state::AppState};
 use anyhow::anyhow;
 use std::{
     cmp::Ordering,

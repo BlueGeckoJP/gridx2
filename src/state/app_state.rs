@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{entry, shared::Shared};
+use crate::{entry, state::shared::Shared};
 
 pub struct AppState {
     original_dir: RwLock<String>,

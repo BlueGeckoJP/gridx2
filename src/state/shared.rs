@@ -6,7 +6,7 @@ use std::{
 use gtk4::gdk::Texture;
 use lru::LruCache;
 
-use crate::app_config::AppConfig;
+use crate::state::app_config::AppConfig;
 
 type ImageCache = LruCache<String, Arc<Texture>>;
 

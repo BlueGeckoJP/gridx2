@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::app_config::SORT_ORDER_VARIANTS;
+use crate::state::app_config::SORT_ORDER_VARIANTS;
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
@@ -99,7 +99,9 @@ impl SettingsWindow {
         vbox.append(&button_box);
 
         let current_config = {
-            let config = app_state.shared.config()
+            let config = app_state
+                .shared
+                .config()
                 .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
             config.clone()
         };
@@ -162,7 +164,9 @@ impl SettingsWindow {
                     return;
                 }
 
-                let save_result = app_state.shared.config()
+                let save_result = app_state
+                    .shared
+                    .config()
                     .and_then(|cfg| cfg.save().map_err(|e| e.to_string()));
 
                 if let Err(e) = save_result {

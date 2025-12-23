@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::state::app_state::AppState;
 use anyhow::anyhow;
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;

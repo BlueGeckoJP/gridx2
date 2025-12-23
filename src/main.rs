@@ -1,19 +1,17 @@
-mod app_config;
-mod app_state;
 mod entry;
 mod file_utils;
 mod image_entry;
 mod image_loader;
 mod settings_window;
-mod shared;
+mod state;
 mod ui_builder;
 mod utils;
 mod widgets;
 
 use std::sync::Arc;
 
-use crate::app_state::AppState;
 use crate::file_utils::{get_relative_path, search_and_prepare_entries};
+use crate::state::app_state::AppState;
 use crate::ui_builder::{build_ui, create_blank_accordion_widget};
 use gtk4 as gtk;
 use gtk4::prelude::{ApplicationExt, ApplicationExtManual, BoxExt, WidgetExt};

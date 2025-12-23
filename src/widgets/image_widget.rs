@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::file_utils::open_with_xdg_open;
-use crate::AppState;
+use crate::state::app_state::AppState;
 
 #[derive(Clone)]
 pub struct ImageWidget {

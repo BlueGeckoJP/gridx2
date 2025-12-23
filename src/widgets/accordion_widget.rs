@@ -5,7 +5,7 @@ use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
 use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
-use crate::AppState;
+use crate::state::app_state::AppState;
 
 pub struct AccordionWidget {
     pub widget: gtk::Box,
@@ -25,7 +25,9 @@ impl AccordionWidget {
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
 
-        let config = app_state.shared.config()
+        let config = app_state
+            .shared
+            .config()
             .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
         match config.dark_mode.unwrap_or(true) {
             true => vbox.add_css_class("dark-mode"),

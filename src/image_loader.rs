@@ -10,11 +10,11 @@ use std::{
 };
 
 use crate::{
-    AppState,
-    app_config::SortOrder,
     entry,
     file_utils::sort_by_updated_at,
     image_entry::{ImageEntry, clear_cache, show_cache_stats},
+    state::app_config::SortOrder,
+    state::app_state::AppState,
     utils::natural_sort,
     widgets::accordion_widget::AccordionWidget,
     widgets::image_widget::ImageWidget,
