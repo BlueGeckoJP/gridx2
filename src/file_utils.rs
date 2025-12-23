@@ -11,23 +11,21 @@ pub fn search_and_prepare_entries(
     app_state: Arc<Mutex<AppState>>,
 ) -> anyhow::Result<(String, Vec<entry::DirEntry>)> {
     let dir_path = {
-        let app_state_guard = app_state.lock().map_err(|_| anyhow!("Failed to lock"))?;
-        app_state_guard.original_dir.clone()
+        let guard = app_state.lock().map_err(|_| anyhow!("Failed to lock"))?;
+        guard.original_dir.clone()
     };
 
-    let entries = entry::DirEntry::search(&dir_path)?;
+    let mut entries = entry::DirEntry::search(&dir_path)?;
+    entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
-    let mut app_state_guard = app_state.lock().map_err(|_| anyhow!("Failed to lock"))?;
+    let (origin_dir, dir_entries) = {
+        let mut guard = app_state.lock().map_err(|_| anyhow!("Failed to lock"))?;
+        guard.dir_entries = entries;
 
-    app_state_guard.dir_entries = entries;
-    app_state_guard
-        .dir_entries
-        .sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
+        (guard.original_dir.clone(), guard.dir_entries.clone())
+    };
 
-    let original_dir = app_state_guard.original_dir.clone();
-    let dir_entries = app_state_guard.dir_entries.clone();
-
-    Ok((original_dir, dir_entries))
+    Ok((origin_dir, dir_entries))
 }
 
 pub fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> {
