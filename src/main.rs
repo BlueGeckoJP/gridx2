@@ -1,15 +1,14 @@
-mod accordion_widget;
 mod app_config;
 mod app_state;
 mod entry;
 mod file_utils;
 mod image_entry;
 mod image_loader;
-mod image_widget;
 mod settings_window;
 mod shared;
 mod ui_builder;
 mod utils;
+mod widgets;
 
 use std::sync::Arc;
 

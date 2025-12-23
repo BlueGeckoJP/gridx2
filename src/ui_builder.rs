@@ -8,9 +8,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::accordion_widget::AccordionWidget;
 use crate::image_loader::load_and_display_images;
 use crate::settings_window::SettingsWindow;
+use crate::widgets::accordion_widget::AccordionWidget;
 use crate::{AppState, AppUI, load_css, update_entry};
 
 pub fn build_ui(app: &Application) {
