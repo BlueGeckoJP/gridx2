@@ -28,21 +28,14 @@ async fn display_loaded_images(
     let image_entries = match done_rx.recv() {
         Ok(image_entries) => {
             let mut sorted_entries = image_entries.clone();
-            let sort_order = {
-                if let Ok(app_config) = APP_CONFIG.read() {
-                    app_config.sort_order.unwrap_or(SortOrder::Name)
-                } else {
-                    SortOrder::Name
-                }
-            };
 
-            let descending = {
-                if let Ok(app_config) = APP_CONFIG.read() {
-                    app_config.descending.unwrap_or(false)
-                } else {
-                    false
-                }
-            };
+            let defaults = (SortOrder::Name, false);
+            let (sort_order, descending) = APP_CONFIG.read().map_or(defaults, |cfg| {
+                (
+                    cfg.sort_order.unwrap_or(defaults.0),
+                    cfg.descending.unwrap_or(defaults.1),
+                )
+            });
 
             match sort_order {
                 SortOrder::Name => sorted_entries.sort_by(|a, b| {
