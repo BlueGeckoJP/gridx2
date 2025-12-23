@@ -1,12 +1,12 @@
-use crate::{APP_CONFIG, IMAGE_CACHE};
+use crate::AppState;
 use anyhow::anyhow;
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 static CACHE_HITS: AtomicUsize = AtomicUsize::new(0);
@@ -21,24 +21,25 @@ pub struct ImageEntry {
 }
 
 impl ImageEntry {
-    pub fn load_image(&mut self) -> anyhow::Result<()> {
+    pub fn load_image(&mut self, app_state: Arc<AppState>) -> anyhow::Result<()> {
         if self.image.is_some() {
             return Ok(());
         }
 
         let thumbnail_size = {
-            let app_config = APP_CONFIG
-                .read()
-                .map_err(|_| anyhow!("Failed to lock app config"))?;
+            let app_config = app_state
+                .shared
+                .config()
+                .map_err(|e| anyhow!("Failed to get config: {}", e))?;
             app_config.thumbnail_size
         };
 
         let cache_start = Instant::now();
         let cache_hit = {
-            let mut image_cache = match IMAGE_CACHE.lock() {
-                Ok(cache) => cache,
-                Err(_) => return Err(anyhow!("Failed to lock image cache")),
-            };
+            let mut image_cache = app_state
+                .shared
+                .image_cache()
+                .map_err(|e| anyhow!("Failed to get image cache: {}", e))?;
             image_cache.get(&self.image_path).cloned()
         };
 
@@ -63,7 +64,7 @@ impl ImageEntry {
             let texture = Arc::new(texture);
             self.image = Some(texture.clone());
 
-            if let Ok(mut image_cache) = IMAGE_CACHE.lock() {
+            if let Ok(mut image_cache) = app_state.shared.image_cache() {
                 image_cache.put(self.image_path.clone(), texture);
             }
         }

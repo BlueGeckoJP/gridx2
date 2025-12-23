@@ -1,10 +1,11 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
 use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
-use crate::APP_CONFIG;
+use crate::AppState;
 
 pub struct AccordionWidget {
     pub widget: gtk::Box,
@@ -15,7 +16,7 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
-    pub fn new(title: &str) -> Self {
+    pub fn new(title: &str, app_state: Arc<AppState>) -> anyhow::Result<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
 
@@ -24,11 +25,11 @@ impl AccordionWidget {
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
 
-        if let Ok(app_config) = APP_CONFIG.read() {
-            match app_config.dark_mode.unwrap_or(true) {
-                true => vbox.add_css_class("dark-mode"),
-                false => vbox.add_css_class("light-mode"),
-            }
+        let config = app_state.shared.config()
+            .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
+        match config.dark_mode.unwrap_or(true) {
+            true => vbox.add_css_class("dark-mode"),
+            false => vbox.add_css_class("light-mode"),
         }
 
         let progress_bar = ProgressBar::new();
@@ -49,13 +50,13 @@ impl AccordionWidget {
         vbox.append(&expander);
         vbox.append(&close_button);
 
-        Self {
+        Ok(Self {
             widget: vbox,
             expander,
             flow_box,
             progress_bar,
             close_button: Rc::new(close_button),
-        }
+        })
     }
 
     pub fn connect_expanded<F: Fn(bool) + 'static>(&self, callback: F) {

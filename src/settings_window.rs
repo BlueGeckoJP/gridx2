@@ -1,16 +1,17 @@
-use crate::APP_CONFIG;
+use crate::AppState;
 use crate::app_config::SORT_ORDER_VARIANTS;
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
+use std::sync::Arc;
 
 pub struct SettingsWindow {
     window: ApplicationWindow,
 }
 
 impl SettingsWindow {
-    pub fn new(parent: &ApplicationWindow) -> anyhow::Result<Self> {
+    pub fn new(parent: &ApplicationWindow, app_state: Arc<AppState>) -> anyhow::Result<Self> {
         let window = ApplicationWindow::builder()
             .title("Settings")
             .default_width(300)
@@ -98,9 +99,8 @@ impl SettingsWindow {
         vbox.append(&button_box);
 
         let current_config = {
-            let config = APP_CONFIG
-                .read()
-                .map_err(|_| anyhow::anyhow!("Failed to lock config"))?;
+            let config = app_state.shared.config()
+                .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
             config.clone()
         };
         max_depth_spin.set_value(current_config.max_depth as f64);
@@ -139,26 +139,33 @@ impl SettingsWindow {
             sort_order_dropdown,
             #[weak]
             descending_switch,
+            #[strong]
+            app_state,
             move |_| {
-                let mut config = match APP_CONFIG.write() {
-                    Ok(config) => config,
-                    Err(_) => return,
-                };
-
-                config.max_depth = max_depth_spin.value() as u32;
-                config.thumbnail_size = thumbnail_spin.value() as u32;
-                config.open_command = command_entry
-                    .text()
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .collect();
-                config.sort_order = sort_order_dropdown.selected_item().and_then(|item| {
-                    item.downcast_ref::<gtk::StringObject>()
-                        .map(|s| s.string().parse().unwrap())
+                let result = app_state.shared.update_config(|config| {
+                    config.max_depth = max_depth_spin.value() as u32;
+                    config.thumbnail_size = thumbnail_spin.value() as u32;
+                    config.open_command = command_entry
+                        .text()
+                        .split_whitespace()
+                        .map(|s| s.to_string())
+                        .collect();
+                    config.sort_order = sort_order_dropdown.selected_item().and_then(|item| {
+                        item.downcast_ref::<gtk::StringObject>()
+                            .and_then(|s| s.string().parse().ok())
+                    });
+                    config.descending = Some(descending_switch.is_active());
                 });
-                config.descending = Some(descending_switch.is_active());
 
-                if let Err(e) = config.save() {
+                if let Err(e) = result {
+                    eprintln!("Failed to update config: {e}");
+                    return;
+                }
+
+                let save_result = app_state.shared.config()
+                    .and_then(|cfg| cfg.save().map_err(|e| e.to_string()));
+
+                if let Err(e) = save_result {
                     eprintln!("Failed to save config: {e}");
                 }
 

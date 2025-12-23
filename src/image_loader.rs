@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    APP_CONFIG, AppState,
+    AppState,
     accordion_widget::AccordionWidget,
     app_config::SortOrder,
     entry,
@@ -24,13 +24,14 @@ async fn display_loaded_images(
     done_rx: mpsc::Receiver<Vec<ImageEntry>>,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
+    app_state: Arc<AppState>,
 ) {
     let image_entries = match done_rx.recv() {
         Ok(image_entries) => {
             let mut sorted_entries = image_entries.clone();
 
             let defaults = (SortOrder::Name, false);
-            let (sort_order, descending) = APP_CONFIG.read().map_or(defaults, |cfg| {
+            let (sort_order, descending) = app_state.shared.config().map_or(defaults, |cfg| {
                 (
                     cfg.sort_order.unwrap_or(defaults.0),
                     cfg.descending.unwrap_or(defaults.1),
@@ -58,7 +59,7 @@ async fn display_loaded_images(
 
     for (index, image_entry) in image_entries.iter().enumerate() {
         if let Some(img) = &image_entry.image {
-            let mut image_widget = ImageWidget::new();
+            let mut image_widget = ImageWidget::new(app_state.clone());
             image_widget.set_image(&image_entry.image_path, img.as_ref());
 
             let accordion_widget = accordion_widget.clone();
@@ -82,23 +83,23 @@ async fn display_loaded_images(
 }
 
 pub async fn load_and_display_images(
-    app_state: Arc<Mutex<AppState>>,
+    app_state: Arc<AppState>,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
     index: usize,
 ) {
     let dir_entry_clone = {
-        match app_state.lock() {
-            Ok(app) => {
-                if index >= app.dir_entries.len() {
+        match app_state.dir_entries() {
+            Ok(entries) => {
+                if index >= entries.len() {
                     eprintln!("Invalid index: {index}");
                     return;
                 }
 
-                app.dir_entries.clone()[index].clone()
+                entries[index].clone()
             }
             Err(e) => {
-                eprintln!("Failed to lock app state: {e}");
+                eprintln!("Failed to get dir_entries: {e}");
                 return;
             }
         }
@@ -122,11 +123,12 @@ pub async fn load_and_display_images(
         tx,
         done_tx,
         done_tx_check,
+        app_state.clone(),
     );
 
     update_progress_bar(accordion_widget_cloned.clone(), rx, done_rx_check).await;
 
-    display_loaded_images(done_rx, accordion_widget_cloned, overlays).await;
+    display_loaded_images(done_rx, accordion_widget_cloned, overlays, app_state).await;
 }
 
 fn spawn_image_loading_thread(
@@ -136,6 +138,7 @@ fn spawn_image_loading_thread(
     tx: mpsc::Sender<f64>,
     done_tx: mpsc::Sender<Vec<ImageEntry>>,
     done_tx_check: mpsc::Sender<u8>,
+    app_state: Arc<AppState>,
 ) {
     let mut loaded_entry_clone = loaded_entry_clone.clone();
 
@@ -146,7 +149,7 @@ fn spawn_image_loading_thread(
             .image_entries
             .par_iter_mut()
             .for_each(|image_entry| {
-                if let Err(e) = image_entry.load_image() {
+                if let Err(e) = image_entry.load_image(app_state.clone()) {
                     eprintln!("Failed to load image: {e}");
                 }
 

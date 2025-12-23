@@ -1,8 +1,9 @@
-use crate::APP_CONFIG;
+use crate::AppState;
 use crate::image_entry::ImageEntry;
 use anyhow::anyhow;
 use std::path;
 use std::path::Path;
+use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
@@ -19,11 +20,12 @@ impl DirEntry {
         }
     }
 
-    pub fn search(root: &str) -> anyhow::Result<Vec<DirEntry>> {
+    pub fn search(root: &str, app_state: Arc<AppState>) -> anyhow::Result<Vec<DirEntry>> {
         let max_depth = {
-            let app_config = APP_CONFIG
-                .read()
-                .map_err(|_| anyhow!("Failed to lock app config"))?;
+            let app_config = app_state
+                .shared
+                .config()
+                .map_err(|e| anyhow!("Failed to get config: {}", e))?;
             app_config.max_depth
         };
 

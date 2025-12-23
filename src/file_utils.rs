@@ -1,29 +1,26 @@
-use crate::{APP_CONFIG, AppState, app_config::AppConfig, entry};
+use crate::{AppState, app_config::AppConfig, entry};
 use anyhow::anyhow;
 use std::{
     cmp::Ordering,
     path::Path,
     process::{Command, Stdio},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 pub fn search_and_prepare_entries(
-    app_state: Arc<Mutex<AppState>>,
+    app_state: Arc<AppState>,
 ) -> anyhow::Result<(String, Vec<entry::DirEntry>)> {
-    let dir_path = {
-        let guard = app_state.lock().map_err(|_| anyhow!("Failed to lock"))?;
-        guard.original_dir.clone()
-    };
+    let dir_path = app_state.original_dir().map_err(|e| anyhow!(e))?;
 
-    let mut entries = entry::DirEntry::search(&dir_path)?;
+    let mut entries = entry::DirEntry::search(&dir_path, app_state.clone())?;
     entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
-    let (origin_dir, dir_entries) = {
-        let mut guard = app_state.lock().map_err(|_| anyhow!("Failed to lock"))?;
-        guard.dir_entries = entries;
+    app_state
+        .set_dir_entries(entries.clone())
+        .map_err(|e| anyhow!(e))?;
 
-        (guard.original_dir.clone(), guard.dir_entries.clone())
-    };
+    let origin_dir = app_state.original_dir().map_err(|e| anyhow!(e))?;
+    let dir_entries = app_state.dir_entries().map_err(|e| anyhow!(e))?;
 
     Ok((origin_dir, dir_entries))
 }
@@ -46,11 +43,12 @@ pub fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> 
     Ok(relative_path.to_string())
 }
 
-pub fn open_with_xdg_open(image_path: String) -> anyhow::Result<()> {
+pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> anyhow::Result<()> {
     let mut open_command = {
-        let app_config = APP_CONFIG
-            .read()
-            .map_err(|_| anyhow!("Failed to lock app config"))?;
+        let app_config = app_state
+            .shared
+            .config()
+            .map_err(|e| anyhow!("Failed to get config: {}", e))?;
         app_config.open_command.clone()
     };
     let index = open_command.iter().position(|x| x == &"<path>".to_string());
