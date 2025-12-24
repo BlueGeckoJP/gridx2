@@ -1,5 +1,4 @@
 use crate::AppState;
-use crate::errors::AppError;
 use crate::state::app_config::SORT_ORDER_VARIANTS;
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
@@ -103,7 +102,7 @@ impl SettingsWindow {
         vbox.append(&button_box);
 
         let current_config = {
-            let config = app_state.shared.config().map_err(AppError::Config)?;
+            let config = app_state.shared.config()?;
             config.clone()
         };
         max_depth_spin.set_value(current_config.max_depth as f64);
@@ -165,10 +164,7 @@ impl SettingsWindow {
                     return;
                 }
 
-                let save_result = app_state
-                    .shared
-                    .config()
-                    .and_then(|cfg| cfg.save().map_err(|e| e.to_string()));
+                let save_result = app_state.shared.config().and_then(|cfg| cfg.save());
 
                 if let Err(e) = save_result {
                     eprintln!("Failed to save config: {e}");

@@ -12,9 +12,6 @@ pub enum AppError {
     #[error("Image error: {0}")]
     Image(#[from] image::ImageError),
 
-    #[error("Cache error: {0}")]
-    Cache(String),
-
     #[error("State lock error: {0}")]
     StateLock(String),
 

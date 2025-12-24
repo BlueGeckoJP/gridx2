@@ -24,7 +24,7 @@ impl DirEntry {
 
     pub fn search(root: &str, app_state: Arc<AppState>) -> AppResult<Vec<DirEntry>> {
         let max_depth = {
-            let app_config = app_state.shared.config().map_err(AppError::Config)?;
+            let app_config = app_state.shared.config()?;
             app_config.max_depth
         };
 

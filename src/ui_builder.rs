@@ -1,4 +1,4 @@
-use crate::errors::{AppError, AppResult};
+use crate::errors::AppResult;
 use gtk4::gio::Cancellable;
 use gtk4::gio::prelude::{ActionMapExt, FileExt};
 use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, GtkWindowExt, WidgetExt};
@@ -151,7 +151,7 @@ pub fn create_blank_accordion_widget(
 
     for _ in 0..count {
         let thumbnail_size = {
-            let app_config = app_state.shared.config().map_err(AppError::Config)?;
+            let app_config = app_state.shared.config()?;
             app_config.thumbnail_size
         } as i32;
 

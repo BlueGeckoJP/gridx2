@@ -1,7 +1,4 @@
-use crate::{
-    errors::{AppError, AppResult},
-    state::app_state::AppState,
-};
+use crate::{errors::AppResult, state::app_state::AppState};
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
@@ -67,13 +64,13 @@ impl ImageEntry {
         }
 
         let thumbnail_size = {
-            let app_config = app_state.shared.config().map_err(AppError::Config)?;
+            let app_config = app_state.shared.config()?;
             app_config.thumbnail_size
         };
 
         let cache_start = Instant::now();
         let cache_hit = {
-            let mut image_cache = app_state.shared.image_cache().map_err(AppError::Cache)?;
+            let mut image_cache = app_state.shared.image_cache()?;
             image_cache.get(&self.image_path).cloned()
         };
 

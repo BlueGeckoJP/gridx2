@@ -1,5 +1,8 @@
 use crate::{
-    entry, errors::{AppError, AppResult}, state::app_config::AppConfig, state::app_state::AppState
+    entry,
+    errors::{AppError, AppResult},
+    state::app_config::AppConfig,
+    state::app_state::AppState,
 };
 use std::{
     cmp::Ordering,
@@ -30,9 +33,10 @@ pub fn get_relative_path(base_path: &str, path: &str) -> AppResult<String> {
     let path = Path::new(path).canonicalize()?;
     let relative_path = path.strip_prefix(&base_path)?;
     let relative_path = relative_path.to_str().ok_or_else(|| {
-        AppError::Path(
-            format!("Failed to convert path to string: {:?}", relative_path.to_str())
-        )
+        AppError::Path(format!(
+            "Failed to convert path to string: {:?}",
+            relative_path.to_str()
+        ))
     })?;
 
     if relative_path.is_empty() {
@@ -44,10 +48,7 @@ pub fn get_relative_path(base_path: &str, path: &str) -> AppResult<String> {
 
 pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> AppResult<()> {
     let mut open_command = {
-        let app_config = app_state
-            .shared
-            .config()
-            .map_err(AppError::Config)?;
+        let app_config = app_state.shared.config()?;
         app_config.open_command.clone()
     };
     let index = open_command.iter().position(|x| x == &"<path>".to_string());

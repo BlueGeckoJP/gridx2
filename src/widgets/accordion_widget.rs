@@ -1,4 +1,4 @@
-use crate::errors::{AppError, AppResult};
+use crate::errors::AppResult;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -26,10 +26,7 @@ impl AccordionWidget {
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
 
-        let config = app_state
-            .shared
-            .config()
-            .map_err(AppError::Config)?;
+        let config = app_state.shared.config()?;
         match config.dark_mode.unwrap_or(true) {
             true => vbox.add_css_class("dark-mode"),
             false => vbox.add_css_class("light-mode"),
