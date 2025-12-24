@@ -1,20 +1,24 @@
-use crate::open_with_xdg_open;
 use gtk4 as gtk;
 use gtk4::Picture;
 use gtk4::gdk::Texture;
 use gtk4::prelude::{BoxExt, TextureExt, WidgetExt};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
+
+use crate::file_utils::open_with_xdg_open;
+use crate::state::app_state::AppState;
 
 #[derive(Clone)]
 pub struct ImageWidget {
     widget: gtk::Box,
     picture: Picture,
     image_path: Rc<RefCell<Option<String>>>,
+    app_state: Arc<AppState>,
 }
 
 impl ImageWidget {
-    pub fn new() -> Self {
+    pub fn new(app_state: Arc<AppState>) -> Self {
         let widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
         widget.set_halign(gtk::Align::Center);
         widget.set_valign(gtk::Align::Center);
@@ -31,6 +35,7 @@ impl ImageWidget {
             widget,
             picture,
             image_path,
+            app_state,
         };
 
         image_widget.setup_click_handler();
@@ -40,12 +45,13 @@ impl ImageWidget {
 
     fn setup_click_handler(&self) {
         let image_path = self.image_path.borrow().clone();
+        let app_state = self.app_state.clone();
 
         let click_gesture = gtk::GestureClick::new();
         click_gesture.connect_released(move |_gesture, _n_press, _x, _y| {
             let image_path = image_path.clone();
             if let Some(path) = image_path {
-                let err = open_with_xdg_open(path);
+                let err = open_with_xdg_open(path, app_state.clone());
                 if let Err(e) = err {
                     println!("Failed to open image: {}", e);
                 }

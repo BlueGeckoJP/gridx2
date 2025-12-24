@@ -1,3 +1,4 @@
+use crate::errors::{AppError, AppResult};
 use gtk4 as gtk;
 use gtk4::glib::object::ObjectExt;
 use serde::{Deserialize, Serialize};
@@ -39,7 +40,7 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
-    pub fn load() -> anyhow::Result<Self> {
+    pub fn load() -> AppResult<Self> {
         let found = Self::get_exist_path()?;
 
         let content = fs::read_to_string(found)?;
@@ -52,7 +53,7 @@ impl AppConfig {
         Ok(config)
     }
 
-    pub fn save(&self) -> anyhow::Result<()> {
+    pub fn save(&self) -> AppResult<()> {
         let found = Self::get_save_path()?;
 
         let content = toml::to_string(self)?;
@@ -61,18 +62,21 @@ impl AppConfig {
         Ok(())
     }
 
-    fn get_save_path() -> anyhow::Result<PathBuf> {
-        let home_path = home::home_dir().ok_or(anyhow::anyhow!("No home directory found"))?;
+    fn get_save_path() -> AppResult<PathBuf> {
+        let home_path = home::home_dir()
+            .ok_or_else(|| AppError::Config("No home directory found".to_string()))?;
         let save_path = home_path.join(".gridx2.toml");
         Ok(save_path)
     }
 
-    fn get_exist_path() -> anyhow::Result<PathBuf> {
+    fn get_exist_path() -> AppResult<PathBuf> {
         let path = Self::get_save_path()?.canonicalize()?;
         if path.exists() {
             return Ok(path);
         }
-        Err(anyhow::anyhow!("No config save directory found"))
+        Err(AppError::Config(
+            "No config save directory found".to_string(),
+        ))
     }
 
     fn get_dark_mode() -> bool {

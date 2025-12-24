@@ -1,8 +1,11 @@
-use crate::APP_CONFIG;
-use crate::image_entry::ImageEntry;
-use anyhow::anyhow;
+use crate::{
+    errors::{AppError, AppResult},
+    image_entry::ImageEntry,
+    state::app_state::AppState,
+};
 use std::path;
 use std::path::Path;
+use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
@@ -19,11 +22,9 @@ impl DirEntry {
         }
     }
 
-    pub fn search(root: &str) -> anyhow::Result<Vec<DirEntry>> {
+    pub fn search(root: &str, app_state: Arc<AppState>) -> AppResult<Vec<DirEntry>> {
         let max_depth = {
-            let app_config = APP_CONFIG
-                .read()
-                .map_err(|_| anyhow!("Failed to lock app config"))?;
+            let app_config = app_state.shared.config()?;
             app_config.max_depth
         };
 
@@ -58,20 +59,19 @@ impl DirEntry {
             let parent = entry
                 .path()
                 .parent()
-                .ok_or_else(|| anyhow!("not found parent directory"))?
-                .to_string_lossy()
-                .to_string();
+                .ok_or_else(|| AppError::Path("parent directory not found".to_string()))?
+                .to_string_lossy();
 
             let dir_entries_index =
-                if let Some(index) = entries.iter().position(|e| e.dir_path == parent) {
+                if let Some(index) = entries.iter().position(|e| e.dir_path.as_str() == parent) {
                     index
                 } else {
-                    entries.push(DirEntry::new(parent));
+                    entries.push(DirEntry::new(parent.into_owned()));
                     entries.len() - 1
                 };
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
-                image_path: entry.path().to_string_lossy().to_string(),
+                image_path: entry.path().to_string_lossy().into_owned(),
                 image: None,
             });
         }
@@ -89,8 +89,8 @@ fn count_depth<T: ToString>(path: T) -> u32 {
         .count() as u32
 }
 
-fn to_absolute<T: AsRef<Path>>(path: T) -> anyhow::Result<String> {
-    Ok(path::absolute(path)?.to_string_lossy().to_string())
+fn to_absolute<T: AsRef<Path>>(path: T) -> AppResult<String> {
+    Ok(path::absolute(path)?.to_string_lossy().into_owned())
 }
 
 fn is_image<T: AsRef<Path>>(path: T) -> bool {
