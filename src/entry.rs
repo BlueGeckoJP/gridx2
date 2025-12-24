@@ -63,7 +63,7 @@ impl DirEntry {
                 .to_string_lossy();
 
             let dir_entries_index =
-                if let Some(index) = entries.iter().position(|e| e.dir_path == parent) {
+                if let Some(index) = entries.iter().position(|e| e.dir_path.as_str() == parent) {
                     index
                 } else {
                     entries.push(DirEntry::new(parent.into_owned()));
