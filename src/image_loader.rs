@@ -34,12 +34,16 @@ async fn display_loaded_images(
     let mut sorted_entries = image_entries.clone();
 
     let defaults = (SortOrder::Name, false);
-    let (sort_order, descending) = app_state.shared.config().map_or(defaults, |cfg| {
-        (
+    let (sort_order, descending) = match app_state.shared.config() {
+        Ok(cfg) => (
             cfg.sort_order.unwrap_or(defaults.0),
             cfg.descending.unwrap_or(defaults.1),
-        )
-    });
+        ),
+        Err(err) => {
+            eprintln!("Failed to load configuration, using default sort settings: {err}");
+            defaults
+        }
+    };
 
     match sort_order {
         SortOrder::Name => sorted_entries.sort_by(|a, b| {
