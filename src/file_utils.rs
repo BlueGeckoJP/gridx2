@@ -1,5 +1,6 @@
-use crate::{entry, state::app_config::AppConfig, state::app_state::AppState};
-use anyhow::anyhow;
+use crate::{
+    entry, errors::{AppError, AppResult}, state::app_config::AppConfig, state::app_state::AppState
+};
 use std::{
     cmp::Ordering,
     path::Path,
@@ -9,7 +10,7 @@ use std::{
 
 pub fn search_and_prepare_entries(
     app_state: Arc<AppState>,
-) -> anyhow::Result<(Arc<String>, Arc<Vec<entry::DirEntry>>)> {
+) -> AppResult<(Arc<String>, Arc<Vec<entry::DirEntry>>)> {
     let dir_path = app_state.with_runtime_ctx(|ctx| ctx.original_dir.clone())?;
 
     let mut entries = entry::DirEntry::search(&dir_path, app_state.clone())?;
@@ -24,14 +25,13 @@ pub fn search_and_prepare_entries(
     Ok((original_dir, dir_entries))
 }
 
-pub fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> {
+pub fn get_relative_path(base_path: &str, path: &str) -> AppResult<String> {
     let base_path = Path::new(base_path).canonicalize()?;
     let path = Path::new(path).canonicalize()?;
     let relative_path = path.strip_prefix(&base_path)?;
     let relative_path = relative_path.to_str().ok_or_else(|| {
-        anyhow::anyhow!(
-            "Failed to convert path to string: {:?}",
-            relative_path.to_str()
+        AppError::Path(
+            format!("Failed to convert path to string: {:?}", relative_path.to_str())
         )
     })?;
 
@@ -42,12 +42,12 @@ pub fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> 
     Ok(relative_path.to_string())
 }
 
-pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> anyhow::Result<()> {
+pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> AppResult<()> {
     let mut open_command = {
         let app_config = app_state
             .shared
             .config()
-            .map_err(|e| anyhow!("Failed to get config: {}", e))?;
+            .map_err(AppError::Config)?;
         app_config.open_command.clone()
     };
     let index = open_command.iter().position(|x| x == &"<path>".to_string());
@@ -78,7 +78,7 @@ pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> anyho
     Ok(())
 }
 
-pub fn sort_by_updated_at(a: &str, b: &str, descending: bool) -> anyhow::Result<Ordering> {
+pub fn sort_by_updated_at(a: &str, b: &str, descending: bool) -> AppResult<Ordering> {
     let a_metadata = std::fs::metadata(a)?;
     let b_metadata = std::fs::metadata(b)?;
 

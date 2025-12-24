@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::errors::AppError;
 use crate::state::app_config::SORT_ORDER_VARIANTS;
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
@@ -11,7 +12,10 @@ pub struct SettingsWindow {
 }
 
 impl SettingsWindow {
-    pub fn new(parent: &ApplicationWindow, app_state: Arc<AppState>) -> anyhow::Result<Self> {
+    pub fn new(
+        parent: &ApplicationWindow,
+        app_state: Arc<AppState>,
+    ) -> crate::errors::AppResult<Self> {
         let window = ApplicationWindow::builder()
             .title("Settings")
             .default_width(300)
@@ -99,10 +103,7 @@ impl SettingsWindow {
         vbox.append(&button_box);
 
         let current_config = {
-            let config = app_state
-                .shared
-                .config()
-                .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
+            let config = app_state.shared.config().map_err(AppError::Config)?;
             config.clone()
         };
         max_depth_spin.set_value(current_config.max_depth as f64);
@@ -111,7 +112,7 @@ impl SettingsWindow {
         sort_order_dropdown.set_selected(
             current_config
                 .sort_order
-                .and_then(|order| {
+                .and_then(|order: crate::state::app_config::SortOrder| {
                     let order_str = order.to_string();
                     SORT_ORDER_VARIANTS
                         .iter()

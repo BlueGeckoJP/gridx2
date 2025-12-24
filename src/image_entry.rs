@@ -1,5 +1,7 @@
-use crate::state::app_state::AppState;
-use anyhow::anyhow;
+use crate::{
+    errors::{AppError, AppResult},
+    state::app_state::AppState,
+};
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
@@ -59,25 +61,19 @@ impl ImageEntry {
         &mut self,
         app_state: Arc<AppState>,
         metrics: &ImageEntryMetrics,
-    ) -> anyhow::Result<()> {
+    ) -> AppResult<()> {
         if self.image.is_some() {
             return Ok(());
         }
 
         let thumbnail_size = {
-            let app_config = app_state
-                .shared
-                .config()
-                .map_err(|e| anyhow!("Failed to get config: {}", e))?;
+            let app_config = app_state.shared.config().map_err(AppError::Config)?;
             app_config.thumbnail_size
         };
 
         let cache_start = Instant::now();
         let cache_hit = {
-            let mut image_cache = app_state
-                .shared
-                .image_cache()
-                .map_err(|e| anyhow!("Failed to get image cache: {}", e))?;
+            let mut image_cache = app_state.shared.image_cache().map_err(AppError::Cache)?;
             image_cache.get(&self.image_path).cloned()
         };
 
@@ -114,7 +110,7 @@ impl ImageEntry {
         Ok(())
     }
 
-    fn load_and_resize_image(&self, thumbnail_size: u32) -> anyhow::Result<Texture> {
+    fn load_and_resize_image(&self, thumbnail_size: u32) -> AppResult<Texture> {
         let path = &self.image_path;
         let img = ImageReader::open(path)?.decode()?;
         let (width, height) = img.dimensions();

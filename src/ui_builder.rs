@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use crate::errors::{AppError, AppResult};
 use gtk4::gio::Cancellable;
 use gtk4::gio::prelude::{ActionMapExt, FileExt};
 use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, GtkWindowExt, WidgetExt};
@@ -142,7 +142,7 @@ pub fn create_blank_accordion_widget(
     title: &str,
     index: usize,
     app_state: Arc<AppState>,
-) -> anyhow::Result<()> {
+) -> AppResult<()> {
     let accordion_widget = Rc::new(RefCell::new(AccordionWidget::new(
         title,
         app_state.clone(),
@@ -151,10 +151,7 @@ pub fn create_blank_accordion_widget(
 
     for _ in 0..count {
         let thumbnail_size = {
-            let app_config = app_state
-                .shared
-                .config()
-                .map_err(|e| anyhow!("Failed to get config: {}", e))?;
+            let app_config = app_state.shared.config().map_err(AppError::Config)?;
             app_config.thumbnail_size
         } as i32;
 

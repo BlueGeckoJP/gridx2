@@ -1,3 +1,4 @@
+use crate::errors::{AppError, AppResult};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -16,7 +17,7 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
-    pub fn new(title: &str, app_state: Arc<AppState>) -> anyhow::Result<Self> {
+    pub fn new(title: &str, app_state: Arc<AppState>) -> AppResult<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
 
@@ -28,7 +29,7 @@ impl AccordionWidget {
         let config = app_state
             .shared
             .config()
-            .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
+            .map_err(AppError::Config)?;
         match config.dark_mode.unwrap_or(true) {
             true => vbox.add_css_class("dark-mode"),
             false => vbox.add_css_class("light-mode"),

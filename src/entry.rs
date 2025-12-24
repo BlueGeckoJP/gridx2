@@ -1,6 +1,8 @@
-use crate::image_entry::ImageEntry;
-use crate::state::app_state::AppState;
-use anyhow::anyhow;
+use crate::{
+    errors::{AppError, AppResult},
+    image_entry::ImageEntry,
+    state::app_state::AppState,
+};
 use std::path;
 use std::path::Path;
 use std::sync::Arc;
@@ -20,12 +22,9 @@ impl DirEntry {
         }
     }
 
-    pub fn search(root: &str, app_state: Arc<AppState>) -> anyhow::Result<Vec<DirEntry>> {
+    pub fn search(root: &str, app_state: Arc<AppState>) -> AppResult<Vec<DirEntry>> {
         let max_depth = {
-            let app_config = app_state
-                .shared
-                .config()
-                .map_err(|e| anyhow!("Failed to get config: {}", e))?;
+            let app_config = app_state.shared.config().map_err(AppError::Config)?;
             app_config.max_depth
         };
 
@@ -60,7 +59,7 @@ impl DirEntry {
             let parent = entry
                 .path()
                 .parent()
-                .ok_or_else(|| anyhow!("not found parent directory"))?
+                .ok_or_else(|| AppError::Path("not found parent directory".to_string()))?
                 .to_string_lossy()
                 .to_string();
 
@@ -91,7 +90,7 @@ fn count_depth<T: ToString>(path: T) -> u32 {
         .count() as u32
 }
 
-fn to_absolute<T: AsRef<Path>>(path: T) -> anyhow::Result<String> {
+fn to_absolute<T: AsRef<Path>>(path: T) -> AppResult<String> {
     Ok(path::absolute(path)?.to_string_lossy().to_string())
 }
 
