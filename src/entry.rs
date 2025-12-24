@@ -60,19 +60,18 @@ impl DirEntry {
                 .path()
                 .parent()
                 .ok_or_else(|| AppError::Path("not found parent directory".to_string()))?
-                .to_string_lossy()
-                .to_string();
+                .to_string_lossy();
 
             let dir_entries_index =
                 if let Some(index) = entries.iter().position(|e| e.dir_path == parent) {
                     index
                 } else {
-                    entries.push(DirEntry::new(parent));
+                    entries.push(DirEntry::new(parent.into_owned()));
                     entries.len() - 1
                 };
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
-                image_path: entry.path().to_string_lossy().to_string(),
+                image_path: entry.path().to_string_lossy().into_owned(),
                 image: None,
             });
         }
@@ -91,7 +90,7 @@ fn count_depth<T: ToString>(path: T) -> u32 {
 }
 
 fn to_absolute<T: AsRef<Path>>(path: T) -> AppResult<String> {
-    Ok(path::absolute(path)?.to_string_lossy().to_string())
+    Ok(path::absolute(path)?.to_string_lossy().into_owned())
 }
 
 fn is_image<T: AsRef<Path>>(path: T) -> bool {
