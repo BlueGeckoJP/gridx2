@@ -111,7 +111,7 @@ impl SettingsWindow {
         sort_order_dropdown.set_selected(
             current_config
                 .sort_order
-                .and_then(|order: crate::state::app_config::SortOrder| {
+                .and_then(|order| {
                     let order_str = order.to_string();
                     SORT_ORDER_VARIANTS
                         .iter()
