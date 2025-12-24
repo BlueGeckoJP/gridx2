@@ -97,7 +97,9 @@ fn build_action(
                     && let Some(dir) = path.path()
                     && let Some(dir_str) = dir.to_str()
                 {
-                    if let Err(e) = app_state_clone.set_original_dir(dir_str.to_string()) {
+                    if let Err(e) = app_state_clone
+                        .update_runtime_ctx(|ctx| ctx.original_dir = Arc::new(dir_str.to_string()))
+                    {
                         eprintln!("Failed to set original_dir: {}", e);
                         return;
                     }

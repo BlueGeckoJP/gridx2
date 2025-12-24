@@ -9,20 +9,19 @@ use std::{
 
 pub fn search_and_prepare_entries(
     app_state: Arc<AppState>,
-) -> anyhow::Result<(String, Vec<entry::DirEntry>)> {
-    let dir_path = app_state.original_dir().map_err(|e| anyhow!(e))?;
+) -> anyhow::Result<(Arc<String>, Arc<Vec<entry::DirEntry>>)> {
+    let dir_path = app_state.with_runtime_ctx(|ctx| ctx.original_dir.clone())?;
 
     let mut entries = entry::DirEntry::search(&dir_path, app_state.clone())?;
     entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
-    app_state
-        .set_dir_entries(entries.clone())
-        .map_err(|e| anyhow!(e))?;
+    let (original_dir, dir_entries) = app_state.update_runtime_ctx(|ctx| {
+        ctx.dir_entries = Arc::new(entries);
 
-    let origin_dir = app_state.original_dir().map_err(|e| anyhow!(e))?;
-    let dir_entries = app_state.dir_entries().map_err(|e| anyhow!(e))?;
+        (ctx.original_dir.clone(), ctx.dir_entries.clone())
+    })?;
 
-    Ok((origin_dir, dir_entries))
+    Ok((original_dir, dir_entries))
 }
 
 pub fn get_relative_path(base_path: &str, path: &str) -> anyhow::Result<String> {

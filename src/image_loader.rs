@@ -89,7 +89,8 @@ pub async fn load_and_display_images(
     index: usize,
 ) {
     let dir_entry_clone = {
-        match app_state.dir_entries() {
+        let dir_entries = app_state.with_runtime_ctx(|ctx| ctx.dir_entries.clone());
+        match dir_entries {
             Ok(entries) => {
                 if index >= entries.len() {
                     eprintln!("Invalid index: {index}");
