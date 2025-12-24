@@ -40,9 +40,9 @@ fn main() -> glib::ExitCode {
 fn update_entry(app_state: Arc<AppState>, vbox: &gtk::Box) -> AppResult<()> {
     clear_ui(vbox);
 
-    let (original_dir, entries_indies) = search_and_prepare_entries(app_state.clone())?;
+    let (original_dir, dir_entries) = search_and_prepare_entries(app_state.clone())?;
 
-    for (index, entry) in entries_indies.iter().enumerate() {
+    for (index, entry) in dir_entries.iter().enumerate() {
         let title = format!(
             "{} | {} entries",
             get_relative_path(&original_dir, &entry.dir_path)?,
