@@ -59,7 +59,7 @@ impl DirEntry {
             let parent = entry
                 .path()
                 .parent()
-                .ok_or_else(|| AppError::Path("not found parent directory".to_string()))?
+                .ok_or_else(|| AppError::Path("parent directory not found".to_string()))?
                 .to_string_lossy();
 
             let dir_entries_index =
