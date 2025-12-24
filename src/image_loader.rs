@@ -12,7 +12,7 @@ use std::{
 use crate::{
     entry,
     file_utils::sort_by_updated_at,
-    image_entry::{ImageEntry, clear_cache, show_cache_stats},
+    image_entry::{ImageEntry, ImageEntryMetrics},
     state::app_config::SortOrder,
     state::app_state::AppState,
     utils::natural_sort,
@@ -142,14 +142,14 @@ fn spawn_image_loading_thread(
 ) {
     let mut loaded_entry_clone = loaded_entry_clone.clone();
 
-    thread::spawn(move || {
-        clear_cache();
+    let metrics = ImageEntryMetrics::default();
 
+    thread::spawn(move || {
         loaded_entry_clone
             .image_entries
             .par_iter_mut()
             .for_each(|image_entry| {
-                if let Err(e) = image_entry.load_image(app_state.clone()) {
+                if let Err(e) = image_entry.load_image(app_state.clone(), &metrics) {
                     eprintln!("Failed to load image: {e}");
                 }
 
@@ -167,7 +167,7 @@ fn spawn_image_loading_thread(
                 let _ = tx.send(progress);
             });
 
-        show_cache_stats();
+        metrics.show_cache_stats();
         let _ = done_tx.send(loaded_entry_clone.image_entries.clone());
         let _ = done_tx_check.send(0);
     });
