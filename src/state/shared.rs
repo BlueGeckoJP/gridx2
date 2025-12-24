@@ -34,16 +34,12 @@ impl Shared {
             .map_err(|e| AppError::StateLock(format!("Failed to lock config for read: {}", e)))
     }
 
-    pub fn update_config<F>(&self, update_fn: F) -> AppResult<()>
-    where
-        F: FnOnce(&mut AppConfig),
-    {
+    pub fn update_config<R>(&self, update_fn: impl FnOnce(&mut AppConfig) -> R) -> AppResult<R> {
         let mut config = self
             .config
             .write()
             .map_err(|e| AppError::StateLock(format!("Failed to lock config for write: {}", e)))?;
-        update_fn(&mut config);
-        Ok(())
+        Ok(update_fn(&mut config))
     }
 
     pub fn image_cache(&self) -> AppResult<std::sync::MutexGuard<'_, ImageCache>> {

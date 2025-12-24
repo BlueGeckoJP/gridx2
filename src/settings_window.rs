@@ -157,17 +157,20 @@ impl SettingsWindow {
                             .and_then(|s| s.string().parse().ok())
                     });
                     config.descending = Some(descending_switch.is_active());
+
+                    config.clone()
                 });
 
-                if let Err(e) = result {
-                    eprintln!("Failed to update config: {e}");
-                    return;
-                }
-
-                let save_result = app_state.shared.config().and_then(|cfg| cfg.save());
-
-                if let Err(e) = save_result {
-                    eprintln!("Failed to save config: {e}");
+                match result {
+                    Ok(config) => {
+                        config.save().unwrap_or_else(|e| {
+                            eprintln!("Failed to save config: {e}");
+                        });
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to update config: {e}");
+                        return;
+                    }
                 }
 
                 window.close();
