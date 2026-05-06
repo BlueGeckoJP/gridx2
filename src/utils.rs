@@ -2,12 +2,10 @@ use regex::Regex;
 use std::cmp::{Ordering, min};
 use std::sync::LazyLock;
 
-use crate::errors::AppResult;
-
 static NATURAL_SORT_RE_ALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)|(\D+)").unwrap());
 static NATURAL_SORT_RE_NUM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+$").unwrap());
 
-pub fn natural_sort(a: &str, b: &str, descending: bool) -> AppResult<Ordering> {
+pub fn natural_sort(a: &str, b: &str, descending: bool) -> eyre::Result<Ordering> {
     let a_parts: Vec<&str> = NATURAL_SORT_RE_ALL
         .find_iter(a)
         .map(|m| m.as_str())

@@ -1,4 +1,3 @@
-use crate::errors::AppResult;
 use gtk4::gio::Cancellable;
 use gtk4::gio::prelude::{ActionMapExt, FileExt};
 use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, GtkWindowExt, WidgetExt};
@@ -142,7 +141,7 @@ pub fn create_blank_accordion_widget(
     title: &str,
     index: usize,
     app_state: Arc<AppState>,
-) -> AppResult<()> {
+) -> eyre::Result<()> {
     let accordion_widget = Rc::new(RefCell::new(AccordionWidget::new(
         title,
         app_state.clone(),

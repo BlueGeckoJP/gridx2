@@ -6,10 +6,7 @@ use std::{
 use gtk4::gdk::Texture;
 use lru::LruCache;
 
-use crate::{
-    errors::{AppError, AppResult},
-    state::app_config::AppConfig,
-};
+use crate::state::app_config::AppConfig;
 
 type ImageCache = LruCache<String, Arc<Texture>>;
 
@@ -28,23 +25,23 @@ impl Shared {
         }
     }
 
-    pub fn config(&self) -> AppResult<RwLockReadGuard<'_, AppConfig>> {
+    pub fn config(&self) -> eyre::Result<RwLockReadGuard<'_, AppConfig>> {
         self.config
             .read()
-            .map_err(|e| AppError::StateLock(format!("Failed to lock config for read: {}", e)))
+            .map_err(|e| eyre::eyre!("Failed to lock config for read: {}", e))
     }
 
-    pub fn update_config<R>(&self, update_fn: impl FnOnce(&mut AppConfig) -> R) -> AppResult<R> {
+    pub fn update_config<R>(&self, update_fn: impl FnOnce(&mut AppConfig) -> R) -> eyre::Result<R> {
         let mut config = self
             .config
             .write()
-            .map_err(|e| AppError::StateLock(format!("Failed to lock config for write: {}", e)))?;
+            .map_err(|e| eyre::eyre!("Failed to lock config for write: {}", e))?;
         Ok(update_fn(&mut config))
     }
 
-    pub fn image_cache(&self) -> AppResult<std::sync::MutexGuard<'_, ImageCache>> {
+    pub fn image_cache(&self) -> eyre::Result<std::sync::MutexGuard<'_, ImageCache>> {
         self.image_cache
             .lock()
-            .map_err(|e| AppError::StateLock(format!("Failed to lock image cache: {}", e)))
+            .map_err(|e| eyre::eyre!("Failed to lock image cache: {}", e))
     }
 }

@@ -1,5 +1,4 @@
 mod entry;
-mod errors;
 mod file_utils;
 mod image_entry;
 mod image_loader;
@@ -11,7 +10,6 @@ mod widgets;
 
 use std::sync::Arc;
 
-use crate::errors::AppResult;
 use crate::file_utils::{get_relative_path, search_and_prepare_entries};
 use crate::state::app_state::AppState;
 use crate::ui_builder::{build_ui, create_blank_accordion_widget};
@@ -37,7 +35,7 @@ fn main() -> glib::ExitCode {
     app.run()
 }
 
-fn update_entry(app_state: Arc<AppState>, vbox: &gtk::Box) -> AppResult<()> {
+fn update_entry(app_state: Arc<AppState>, vbox: &gtk::Box) -> eyre::Result<()> {
     clear_ui(vbox);
 
     let (original_dir, dir_entries) = search_and_prepare_entries(app_state.clone())?;

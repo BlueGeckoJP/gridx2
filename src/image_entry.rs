@@ -1,4 +1,4 @@
-use crate::{errors::AppResult, state::app_state::AppState};
+use crate::state::app_state::AppState;
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
@@ -58,7 +58,7 @@ impl ImageEntry {
         &mut self,
         app_state: Arc<AppState>,
         metrics: &ImageEntryMetrics,
-    ) -> AppResult<()> {
+    ) -> eyre::Result<()> {
         if self.image.is_some() {
             return Ok(());
         }
@@ -107,7 +107,7 @@ impl ImageEntry {
         Ok(())
     }
 
-    fn load_and_resize_image(&self, thumbnail_size: u32) -> AppResult<Texture> {
+    fn load_and_resize_image(&self, thumbnail_size: u32) -> eyre::Result<Texture> {
         let path = &self.image_path;
         let img = ImageReader::open(path)?.decode()?;
         let (width, height) = img.dimensions();

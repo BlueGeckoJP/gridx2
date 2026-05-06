@@ -1,4 +1,3 @@
-use crate::errors::AppResult;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -17,7 +16,7 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
-    pub fn new(title: &str, app_state: Arc<AppState>) -> AppResult<Self> {
+    pub fn new(title: &str, app_state: Arc<AppState>) -> eyre::Result<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
 

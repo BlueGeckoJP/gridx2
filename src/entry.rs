@@ -1,8 +1,4 @@
-use crate::{
-    errors::{AppError, AppResult},
-    image_entry::ImageEntry,
-    state::app_state::AppState,
-};
+use crate::{image_entry::ImageEntry, state::app_state::AppState};
 use std::path;
 use std::path::Path;
 use std::sync::Arc;
@@ -22,7 +18,7 @@ impl DirEntry {
         }
     }
 
-    pub fn search(root: &str, app_state: Arc<AppState>) -> AppResult<Vec<DirEntry>> {
+    pub fn search(root: &str, app_state: Arc<AppState>) -> eyre::Result<Vec<DirEntry>> {
         let max_depth = {
             let app_config = app_state.shared.config()?;
             app_config.max_depth
@@ -59,7 +55,7 @@ impl DirEntry {
             let parent = entry
                 .path()
                 .parent()
-                .ok_or_else(|| AppError::Path("parent directory not found".to_string()))?
+                .ok_or_else(|| eyre::eyre!("parent directory not found"))?
                 .to_string_lossy();
 
             let dir_entries_index =
@@ -89,7 +85,7 @@ fn count_depth<T: ToString>(path: T) -> u32 {
         .count() as u32
 }
 
-fn to_absolute<T: AsRef<Path>>(path: T) -> AppResult<String> {
+fn to_absolute<T: AsRef<Path>>(path: T) -> eyre::Result<String> {
     Ok(path::absolute(path)?.to_string_lossy().into_owned())
 }
 

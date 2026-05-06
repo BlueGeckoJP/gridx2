@@ -11,10 +11,7 @@ pub struct SettingsWindow {
 }
 
 impl SettingsWindow {
-    pub fn new(
-        parent: &ApplicationWindow,
-        app_state: Arc<AppState>,
-    ) -> crate::errors::AppResult<Self> {
+    pub fn new(parent: &ApplicationWindow, app_state: Arc<AppState>) -> eyre::Result<Self> {
         let window = ApplicationWindow::builder()
             .title("Settings")
             .default_width(300)
