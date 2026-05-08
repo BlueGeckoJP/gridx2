@@ -1,5 +1,7 @@
 use strum::{Display, EnumString};
 
+pub const SORT_ORDER_VARIANTS: &[&str] = &["name", "updated_at"];
+
 #[derive(Clone, EnumString, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum SortOrder {

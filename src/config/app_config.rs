@@ -2,8 +2,6 @@ use std::sync::{Arc, RwLock};
 
 use crate::config::{config_store::ConfigStore, raw_config::RawConfig};
 
-pub const SORT_ORDER_VARIANTS: &[&str] = &["name", "updated_at"];
-
 #[derive(Clone)]
 pub struct AppConfig {
     inner: Arc<RwLock<RawConfig>>,
