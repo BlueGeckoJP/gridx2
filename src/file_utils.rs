@@ -43,7 +43,7 @@ pub fn get_relative_path(base_path: &str, path: &str) -> eyre::Result<String> {
 }
 
 pub fn open_with_xdg_open(image_path: String, mut open_command: Vec<String>) -> eyre::Result<()> {
-    let index = open_command.iter().position(|x| x == &"<path>".to_string());
+    let index = open_command.iter().position(|x| x == "<path>");
 
     let mut cmd = match index {
         Some(index) => {
