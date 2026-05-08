@@ -178,25 +178,30 @@ async fn handle_load_messages(
     rx: mpsc::Receiver<LoadMessage>,
     app_config: AppConfig,
 ) {
-    let mut image_entries = vec![];
-
-    while let Ok(msg) = rx.recv() {
-        match msg {
-            LoadMessage::Progress(progress) => {
+    let image_entries = loop {
+        match rx.try_recv() {
+            Ok(LoadMessage::Progress(progress)) => {
                 accordion_widget
                     .borrow()
                     .progress_bar
                     .set_fraction(progress);
                 glib::timeout_future(Duration::from_millis(1)).await;
             }
-            LoadMessage::Complete(entries) => {
+            Ok(LoadMessage::Complete(entries)) => {
                 accordion_widget.borrow().progress_bar.set_fraction(1.0);
                 glib::timeout_future(Duration::from_millis(1)).await;
-                image_entries = entries;
-                break;
+                break entries;
+            }
+            Err(mpsc::TryRecvError::Empty) => {
+                glib::timeout_future(Duration::from_millis(16)).await;
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                eprintln!("Image loading channel disconnected before completion");
+                accordion_widget.borrow().progress_bar.set_visible(false);
+                glib::timeout_future(Duration::from_millis(16)).await;
             }
         }
-    }
+    };
 
     display_loaded_images(image_entries, accordion_widget, overlays, app_config).await;
 }

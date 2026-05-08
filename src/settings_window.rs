@@ -1,5 +1,4 @@
 use crate::config::app_config::{AppConfig, SORT_ORDER_VARIANTS};
-use crate::config::raw_config::RawConfig;
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
