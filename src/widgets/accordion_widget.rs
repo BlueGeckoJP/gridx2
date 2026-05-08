@@ -1,11 +1,8 @@
 use std::rc::Rc;
-use std::sync::Arc;
 
 use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
 use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
-
-use crate::state::app_state::AppState;
 
 pub struct AccordionWidget {
     pub widget: gtk::Box,
@@ -16,7 +13,7 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
-    pub fn new(title: &str, app_state: Arc<AppState>) -> eyre::Result<Self> {
+    pub fn new(title: &str, dark_mode: bool) -> eyre::Result<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
 
@@ -25,8 +22,7 @@ impl AccordionWidget {
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
 
-        let config = app_state.shared.config()?;
-        match config.dark_mode.unwrap_or(true) {
+        match dark_mode {
             true => vbox.add_css_class("dark-mode"),
             false => vbox.add_css_class("light-mode"),
         }

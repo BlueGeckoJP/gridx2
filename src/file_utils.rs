@@ -1,4 +1,4 @@
-use crate::{entry, state::app_config::AppConfig, state::app_state::AppState};
+use crate::{config::raw_config::RawConfig, entry, state::app_state::AppState};
 use std::{
     cmp::Ordering,
     path::Path,
@@ -8,10 +8,11 @@ use std::{
 
 pub fn search_and_prepare_entries(
     app_state: Arc<AppState>,
+    max_depth: u32,
 ) -> eyre::Result<(Arc<String>, Arc<Vec<entry::DirEntry>>)> {
     let dir_path = app_state.with_runtime_ctx(|ctx| ctx.original_dir.clone())?;
 
-    let mut entries = entry::DirEntry::search(&dir_path, app_state.clone())?;
+    let mut entries = entry::DirEntry::search(&dir_path, max_depth)?;
     entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
     let (original_dir, dir_entries) = app_state.update_runtime_ctx(|ctx| {
@@ -41,12 +42,8 @@ pub fn get_relative_path(base_path: &str, path: &str) -> eyre::Result<String> {
     Ok(relative_path.to_string())
 }
 
-pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> eyre::Result<()> {
-    let mut open_command = {
-        let app_config = app_state.shared.config()?;
-        app_config.open_command.clone()
-    };
-    let index = open_command.iter().position(|x| x == &"<path>".to_string());
+pub fn open_with_xdg_open(image_path: String, mut open_command: Vec<String>) -> eyre::Result<()> {
+    let index = open_command.iter().position(|x| x == "<path>");
 
     let mut cmd = match index {
         Some(index) => {
@@ -57,7 +54,7 @@ pub fn open_with_xdg_open(image_path: String, app_state: Arc<AppState>) -> eyre:
             cmd
         }
         None => {
-            let app_config = AppConfig::default();
+            let app_config = RawConfig::default();
             let first_arg = app_config.open_command[0].clone();
             let mut cmd = Command::new(&first_arg);
             cmd.args(&app_config.open_command[1..]);

@@ -10,14 +10,13 @@ use std::{
 };
 
 use crate::{
+    config::{app_config::AppConfig, raw_config::SortOrder},
     entry,
     file_utils::sort_by_updated_at,
     image_entry::{ImageEntry, ImageEntryMetrics},
-    state::app_config::SortOrder,
     state::app_state::AppState,
     utils::natural_sort,
-    widgets::accordion_widget::AccordionWidget,
-    widgets::image_widget::ImageWidget,
+    widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
 };
 
 enum LoadMessage {
@@ -29,21 +28,20 @@ async fn display_loaded_images(
     image_entries: Vec<ImageEntry>,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
-    app_state: Arc<AppState>,
+    app_config: AppConfig,
 ) {
     let mut sorted_entries = image_entries.clone();
 
-    let defaults = (SortOrder::Name, false);
-    let (sort_order, descending) = match app_state.shared.config() {
-        Ok(cfg) => (
-            cfg.sort_order.unwrap_or(defaults.0),
-            cfg.descending.unwrap_or(defaults.1),
-        ),
-        Err(err) => {
-            eprintln!("Failed to load configuration, using default sort settings: {err}");
-            defaults
+    let config = match app_config.get() {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Failed to get app config: {e}");
+            return;
         }
     };
+
+    let sort_order = config.sort_order;
+    let descending = config.descending;
 
     match sort_order {
         SortOrder::Name => sorted_entries.sort_by(|a, b| {
@@ -58,7 +56,7 @@ async fn display_loaded_images(
 
     for (index, image_entry) in sorted_entries.iter().enumerate() {
         if let Some(img) = &image_entry.image {
-            let mut image_widget = ImageWidget::new(app_state.clone());
+            let mut image_widget = ImageWidget::new(app_config.clone());
             image_widget.set_image(&image_entry.image_path, img.as_ref());
 
             let accordion_widget = accordion_widget.clone();
@@ -83,6 +81,7 @@ async fn display_loaded_images(
 
 pub async fn load_and_display_images(
     app_state: Arc<AppState>,
+    app_config: AppConfig,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
     index: usize,
@@ -110,15 +109,24 @@ pub async fn load_and_display_images(
 
     let (tx, rx) = mpsc::channel::<LoadMessage>();
 
+    let thumbnail_size = match app_config.get() {
+        Ok(config) => config.thumbnail_size,
+        Err(e) => {
+            eprintln!("Failed to get app config: {e}");
+            return;
+        }
+    };
+
     spawn_image_loading_thread(
         &dir_entry_clone,
         counter,
         total_images,
         tx,
         app_state.clone(),
+        thumbnail_size,
     );
 
-    handle_load_messages(accordion_widget, overlays, rx, app_state).await;
+    handle_load_messages(accordion_widget, overlays, rx, app_config).await;
 }
 
 fn spawn_image_loading_thread(
@@ -127,6 +135,7 @@ fn spawn_image_loading_thread(
     total_images: usize,
     tx: mpsc::Sender<LoadMessage>,
     app_state: Arc<AppState>,
+    thumbnail_size: u32,
 ) {
     let mut loaded_entry_clone = loaded_entry_clone.clone();
 
@@ -137,7 +146,8 @@ fn spawn_image_loading_thread(
             .image_entries
             .par_iter_mut()
             .for_each(|image_entry| {
-                if let Err(e) = image_entry.load_image(app_state.clone(), &metrics) {
+                if let Err(e) = image_entry.load_image(app_state.clone(), thumbnail_size, &metrics)
+                {
                     eprintln!("Failed to load image: {e}");
                 }
 
@@ -166,7 +176,7 @@ async fn handle_load_messages(
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
     rx: mpsc::Receiver<LoadMessage>,
-    app_state: Arc<AppState>,
+    app_config: AppConfig,
 ) {
     let mut image_entries = vec![];
 
@@ -188,5 +198,5 @@ async fn handle_load_messages(
         }
     }
 
-    display_loaded_images(image_entries, accordion_widget, overlays, app_state).await;
+    display_loaded_images(image_entries, accordion_widget, overlays, app_config).await;
 }

@@ -1,17 +1,16 @@
-use crate::AppState;
-use crate::state::app_config::SORT_ORDER_VARIANTS;
+use crate::config::app_config::{AppConfig, SORT_ORDER_VARIANTS};
+use crate::config::raw_config::RawConfig;
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
-use std::sync::Arc;
 
 pub struct SettingsWindow {
     window: ApplicationWindow,
 }
 
 impl SettingsWindow {
-    pub fn new(parent: &ApplicationWindow, app_state: Arc<AppState>) -> eyre::Result<Self> {
+    pub fn new(parent: &ApplicationWindow, app_config: AppConfig) -> eyre::Result<Self> {
         let window = ApplicationWindow::builder()
             .title("Settings")
             .default_width(300)
@@ -98,26 +97,18 @@ impl SettingsWindow {
         button_box.append(&button_cancel);
         vbox.append(&button_box);
 
-        let current_config = {
-            let config = app_state.shared.config()?;
-            config.clone()
-        };
+        let current_config = app_config.get()?;
         max_depth_spin.set_value(current_config.max_depth as f64);
         thumbnail_spin.set_value(current_config.thumbnail_size as f64);
         command_entry.set_text(&current_config.open_command.join(" "));
-        sort_order_dropdown.set_selected(
-            current_config
-                .sort_order
-                .and_then(|order| {
-                    let order_str = order.to_string();
-                    SORT_ORDER_VARIANTS
-                        .iter()
-                        .position(|&variant| variant == order_str)
-                        .map(|pos| pos as u32)
-                })
-                .unwrap_or(0),
-        );
-        descending_switch.set_active(current_config.descending.unwrap_or(false));
+        sort_order_dropdown.set_selected({
+            let order_str = current_config.sort_order.to_string();
+            SORT_ORDER_VARIANTS
+                .iter()
+                .position(|&variant| variant == order_str)
+                .unwrap_or(0) as u32
+        });
+        descending_switch.set_active(current_config.descending);
 
         button_cancel.connect_clicked(glib::clone!(
             #[weak]
@@ -139,36 +130,35 @@ impl SettingsWindow {
             #[weak]
             descending_switch,
             #[strong]
-            app_state,
+            app_config,
             move |_| {
-                let result = app_state.shared.update_config(|config| {
-                    config.max_depth = max_depth_spin.value() as u32;
-                    config.thumbnail_size = thumbnail_spin.value() as u32;
-                    config.open_command = command_entry
-                        .text()
-                        .split_whitespace()
-                        .map(|s| s.to_string())
-                        .collect();
-                    config.sort_order = sort_order_dropdown.selected_item().and_then(|item| {
-                        item.downcast_ref::<gtk::StringObject>()
-                            .and_then(|s| s.string().parse().ok())
-                    });
-                    config.descending = Some(descending_switch.is_active());
-
-                    config.clone()
-                });
-
-                match result {
-                    Ok(config) => {
-                        config.save().unwrap_or_else(|e| {
-                            eprintln!("Failed to save config: {e}");
-                        });
-                    }
+                let mut config = match app_config.get() {
+                    Ok(config) => config,
                     Err(e) => {
-                        eprintln!("Failed to update config: {e}");
+                        eprintln!("Failed to get current config: {e}");
                         return;
                     }
-                }
+                };
+
+                config.max_depth = max_depth_spin.value() as u32;
+                config.thumbnail_size = thumbnail_spin.value() as u32;
+                config.open_command = command_entry
+                    .text()
+                    .split_whitespace()
+                    .map(|s| s.to_string())
+                    .collect();
+                config.sort_order = sort_order_dropdown
+                    .selected_item()
+                    .and_then(|item| {
+                        item.downcast_ref::<gtk::StringObject>()
+                            .and_then(|s| s.string().parse().ok())
+                    })
+                    .unwrap_or(config.sort_order);
+                config.descending = descending_switch.is_active();
+
+                app_config.update(config).unwrap_or_else(|e| {
+                    eprintln!("Failed to update config: {e}");
+                });
 
                 window.close();
             }
