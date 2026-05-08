@@ -132,26 +132,31 @@ impl SettingsWindow {
             #[strong]
             app_config,
             move |_| {
-                let new_config = RawConfig {
-                    max_depth: max_depth_spin.value() as u32,
-                    thumbnail_size: thumbnail_spin.value() as u32,
-                    open_command: command_entry
-                        .text()
-                        .split_whitespace()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    sort_order: sort_order_dropdown
-                        .selected_item()
-                        .and_then(|item| {
-                            item.downcast_ref::<gtk::StringObject>()
-                                .and_then(|s| s.string().parse().ok())
-                        })
-                        .unwrap_or(app_config.get().unwrap().sort_order),
-                    descending: descending_switch.is_active(),
-                    ..Default::default()
+                let mut config = match app_config.get() {
+                    Ok(config) => config,
+                    Err(e) => {
+                        eprintln!("Failed to get current config: {e}");
+                        return;
+                    }
                 };
 
-                app_config.update(new_config.clone()).unwrap_or_else(|e| {
+                config.max_depth = max_depth_spin.value() as u32;
+                config.thumbnail_size = thumbnail_spin.value() as u32;
+                config.open_command = command_entry
+                    .text()
+                    .split_whitespace()
+                    .map(|s| s.to_string())
+                    .collect();
+                config.sort_order = sort_order_dropdown
+                    .selected_item()
+                    .and_then(|item| {
+                        item.downcast_ref::<gtk::StringObject>()
+                            .and_then(|s| s.string().parse().ok())
+                    })
+                    .unwrap_or(config.sort_order);
+                config.descending = descending_switch.is_active();
+
+                app_config.update(config).unwrap_or_else(|e| {
                     eprintln!("Failed to update config: {e}");
                 });
 
