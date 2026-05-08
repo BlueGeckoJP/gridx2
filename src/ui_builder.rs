@@ -152,10 +152,15 @@ pub fn create_blank_accordion_widget(
     app_state: Arc<AppState>,
     app_config: AppConfig,
 ) -> eyre::Result<()> {
-    let accordion_widget = Rc::new(RefCell::new(AccordionWidget::new(
-        title,
-        app_config.clone(),
-    )?));
+    let dark_mode = match app_config.get() {
+        Ok(config) => config.dark_mode,
+        Err(e) => {
+            eprintln!("Failed to get app config: {e}");
+            false
+        }
+    };
+
+    let accordion_widget = Rc::new(RefCell::new(AccordionWidget::new(title, dark_mode)?));
     let mut overlays = Vec::new();
 
     let config = app_config.get()?;

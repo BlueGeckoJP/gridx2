@@ -4,8 +4,6 @@ use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
 use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
-use crate::config::app_config::AppConfig;
-
 pub struct AccordionWidget {
     pub widget: gtk::Box,
     pub expander: Expander,
@@ -15,7 +13,7 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
-    pub fn new(title: &str, app_config: AppConfig) -> eyre::Result<Self> {
+    pub fn new(title: &str, dark_mode: bool) -> eyre::Result<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
 
@@ -24,8 +22,7 @@ impl AccordionWidget {
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
 
-        let config = app_config.get()?;
-        match config.dark_mode {
+        match dark_mode {
             true => vbox.add_css_class("dark-mode"),
             false => vbox.add_css_class("light-mode"),
         }
