@@ -43,12 +43,12 @@ impl ImageWidget {
     }
 
     fn setup_click_handler(&self) {
-        let image_path = self.image_path.borrow().clone();
+        let image_path = self.image_path.clone();
         let app_config = self.app_config.clone();
 
         let click_gesture = gtk::GestureClick::new();
         click_gesture.connect_released(move |_gesture, _n_press, _x, _y| {
-            let image_path = image_path.clone();
+            let image_path = image_path.borrow().clone();
             if let Some(path) = image_path {
                 let config = match app_config.get() {
                     Ok(config) => config,
@@ -73,7 +73,6 @@ impl ImageWidget {
         self.picture
             .set_size_request(texture.width(), texture.height());
         self.image_path.replace(Some(path.to_string()));
-        self.setup_click_handler();
     }
 
     pub fn widget(&self) -> &gtk::Box {
