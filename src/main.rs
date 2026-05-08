@@ -5,6 +5,7 @@ mod image_entry;
 mod image_loader;
 mod settings_window;
 mod state;
+mod theme;
 mod ui_builder;
 mod utils;
 mod widgets;

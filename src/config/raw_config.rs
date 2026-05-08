@@ -1,3 +1,5 @@
+pub const SORT_ORDER_VARIANTS: &[&str] = &["name", "updated_at"];
+
 #[derive(Clone)]
 pub enum SortOrder {
     Name,

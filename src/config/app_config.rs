@@ -8,7 +8,7 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn init() -> Self {
+    pub fn init(dark_mode: bool) -> Self {
         let default_path = match ConfigStore::get_default_path() {
             Ok(path) => path,
             Err(e) => {
@@ -36,7 +36,7 @@ impl AppConfig {
             }
         };
 
-        let raw_config: RawConfig = config_store.into();
+        let raw_config: RawConfig = config_store.into_raw_config(dark_mode);
 
         Self {
             inner: Arc::new(RwLock::new(raw_config)),

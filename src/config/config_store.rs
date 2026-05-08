@@ -32,7 +32,24 @@ impl ConfigStore {
     pub fn get_default_path() -> eyre::Result<PathBuf> {
         let home_path = home::home_dir().ok_or_else(|| eyre::eyre!("No home directory found"))?;
         let default_path = home_path.join(".gridx2.toml");
-        Ok(default_path.canonicalize()?)
+        Ok(default_path)
+    }
+
+    pub fn into_raw_config(self, gtk_dark_mode: bool) -> RawConfig {
+        let default = RawConfig::default();
+
+        RawConfig {
+            max_depth: self.max_depth.unwrap_or(default.max_depth),
+            thumbnail_size: self.thumbnail_size.unwrap_or(default.thumbnail_size),
+            open_command: self.open_command.unwrap_or(default.open_command),
+            dark_mode: self.dark_mode.unwrap_or(gtk_dark_mode),
+            sort_order: match self.sort_order.as_deref() {
+                Some("name") => SortOrder::Name,
+                Some("updated_at") => SortOrder::UpdatedAt,
+                _ => default.sort_order,
+            },
+            descending: self.descending.unwrap_or(default.descending),
+        }
     }
 }
 
@@ -48,25 +65,6 @@ impl From<RawConfig> for ConfigStore {
                 SortOrder::UpdatedAt => "updated_at".to_string(),
             }),
             descending: Some(value.descending),
-        }
-    }
-}
-
-impl From<ConfigStore> for RawConfig {
-    fn from(value: ConfigStore) -> Self {
-        let default = RawConfig::default();
-
-        Self {
-            max_depth: value.max_depth.unwrap_or(default.max_depth),
-            thumbnail_size: value.thumbnail_size.unwrap_or(default.thumbnail_size),
-            open_command: value.open_command.unwrap_or(default.open_command),
-            dark_mode: value.dark_mode.unwrap_or(default.dark_mode),
-            sort_order: match value.sort_order.as_deref() {
-                Some("name") => SortOrder::Name,
-                Some("updated_at") => SortOrder::UpdatedAt,
-                _ => default.sort_order,
-            },
-            descending: value.descending.unwrap_or(default.descending),
         }
     }
 }
