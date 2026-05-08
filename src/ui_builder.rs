@@ -1,18 +1,19 @@
 use gtk4::gio::Cancellable;
 use gtk4::gio::prelude::{ActionMapExt, FileExt};
 use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, GtkWindowExt, WidgetExt};
-use gtk4::{self as gtk, Button, FileDialog, HeaderBar, gio, glib};
+use gtk4::{self as gtk, Button, CssProvider, FileDialog, HeaderBar, gdk, gio, glib};
 use gtk4::{Application, ApplicationWindow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::AppUI;
 use crate::config::app_config::AppConfig;
+use crate::file_utils::{get_relative_path, search_and_prepare_entries};
 use crate::image_cache::ImageCache;
 use crate::image_loader::load_and_display_images;
 use crate::session::Session;
 use crate::settings_window::SettingsWindow;
 use crate::widgets::accordion_widget::AccordionWidget;
-use crate::{AppUI, load_css, update_entry};
 
 pub fn build_ui(
     app: &Application,
@@ -252,4 +253,57 @@ fn prepare_accordion_for_loading(accordion_widget: &Rc<RefCell<AccordionWidget>>
 
     accordion_widget.progress_bar.set_fraction(0.0);
     accordion_widget.progress_bar.set_visible(true);
+}
+
+fn load_css() {
+    let provider = CssProvider::new();
+    provider.load_from_data(include_str!("style.css"));
+
+    gtk::style_context_add_provider_for_display(
+        &gdk::Display::default().expect("Failed to get display"),
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+}
+
+fn update_entry(
+    session: Session,
+    app_config: AppConfig,
+    image_cache: ImageCache,
+    vbox: &gtk::Box,
+) -> eyre::Result<()> {
+    clear_ui(vbox);
+
+    let config = app_config.get()?;
+    let max_depth = config.max_depth;
+
+    search_and_prepare_entries(session.clone(), max_depth)?;
+
+    let (original_dir, dir_entries) = (session.original_dir()?, session.dir_entries()?);
+
+    for (index, entry) in dir_entries.iter().enumerate() {
+        let title = format!(
+            "{} | {} entries",
+            get_relative_path(&original_dir, &entry.dir_path)?,
+            entry.image_entries.len()
+        );
+
+        create_blank_accordion_widget(
+            vbox,
+            entry.image_entries.len(),
+            &title,
+            index,
+            session.clone(),
+            app_config.clone(),
+            image_cache.clone(),
+        )?;
+    }
+
+    Ok(())
+}
+
+fn clear_ui(vbox: &gtk::Box) {
+    while let Some(child) = vbox.first_child() {
+        vbox.remove(&child);
+    }
 }
