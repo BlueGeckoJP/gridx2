@@ -1,17 +1,15 @@
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
-use crate::state::{runtime_ctx::RuntimeCtx, shared::Shared};
+use crate::state::runtime_ctx::RuntimeCtx;
 
 pub struct AppState {
     runtime_ctx: RwLock<RuntimeCtx>,
-    pub shared: Arc<Shared>,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
             runtime_ctx: RwLock::new(RuntimeCtx::new()),
-            shared: Arc::new(Shared::new()),
         }
     }
 }

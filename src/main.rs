@@ -1,6 +1,7 @@
 mod config;
 mod entry;
 mod file_utils;
+mod image_cache;
 mod image_entry;
 mod image_loader;
 mod settings_window;
@@ -14,6 +15,7 @@ use std::sync::Arc;
 
 use crate::config::app_config::AppConfig;
 use crate::file_utils::{get_relative_path, search_and_prepare_entries};
+use crate::image_cache::ImageCache;
 use crate::state::app_state::AppState;
 use crate::ui_builder::{build_ui, create_blank_accordion_widget};
 use gtk4 as gtk;
@@ -30,12 +32,14 @@ fn main() -> glib::ExitCode {
     let dark_mode = theme::is_gtk_dark_theme();
     let app_config = AppConfig::init(dark_mode);
 
+    let image_cache = ImageCache::new(5000);
+
     let app = Application::builder()
         .application_id("me.bluegecko.gridx2")
         .build();
 
     app.connect_activate(move |app| {
-        build_ui(app, app_config.clone());
+        build_ui(app, app_config.clone(), image_cache.clone());
     });
 
     app.run()
@@ -44,6 +48,7 @@ fn main() -> glib::ExitCode {
 fn update_entry(
     app_state: Arc<AppState>,
     app_config: AppConfig,
+    image_cache: ImageCache,
     vbox: &gtk::Box,
 ) -> eyre::Result<()> {
     clear_ui(vbox);
@@ -67,6 +72,7 @@ fn update_entry(
             index,
             app_state.clone(),
             app_config.clone(),
+            image_cache.clone(),
         )?;
     }
 

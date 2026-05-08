@@ -8,12 +8,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::config::app_config::AppConfig;
+use crate::image_cache::ImageCache;
 use crate::image_loader::load_and_display_images;
 use crate::settings_window::SettingsWindow;
 use crate::widgets::accordion_widget::AccordionWidget;
 use crate::{AppState, AppUI, load_css, update_entry};
 
-pub fn build_ui(app: &Application, app_config: AppConfig) {
+pub fn build_ui(app: &Application, app_config: AppConfig, image_cache: ImageCache) {
     load_css();
 
     let app_state = Arc::new(AppState::default());
@@ -55,7 +56,14 @@ pub fn build_ui(app: &Application, app_config: AppConfig) {
     window.set_titlebar(Some(&header_bar));
 
     // Build actions
-    build_action(app, &window, &app_ui, &app_state, app_config.clone());
+    build_action(
+        app,
+        &window,
+        &app_ui,
+        &app_state,
+        app_config.clone(),
+        image_cache.clone(),
+    );
 
     // Build a scrollable window
     let scrollable_window = gtk::ScrolledWindow::builder()
@@ -76,6 +84,7 @@ fn build_action(
     app_ui: &Rc<RefCell<AppUI>>,
     app_state: &Arc<AppState>,
     app_config: AppConfig,
+    image_cache: ImageCache,
 ) {
     let app_ui = app_ui.clone();
     let app_state_clone = app_state.clone();
@@ -89,12 +98,15 @@ fn build_action(
         app_ui,
         #[strong]
         app_state_clone,
+        #[strong]
+        image_cache,
         move |_, _| {
             let dialog = FileDialog::new();
             let cancellable = Cancellable::new();
             let app_ui = app_ui.clone();
             let app_state_clone = app_state_clone.clone();
             let app_config = app_config_clone.clone();
+            let image_cache = image_cache.clone();
             dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
                 if let Ok(path) = result
                     && let Some(dir) = path.path()
@@ -108,10 +120,12 @@ fn build_action(
                     }
                     let app_state = app_state_clone.clone();
                     let app_config = app_config.clone();
+                    let image_cache = image_cache.clone();
                     glib::spawn_future_local(async move {
                         if let Err(e) = update_entry(
                             app_state.clone(),
                             app_config.clone(),
+                            image_cache.clone(),
                             &app_ui.borrow().top_vbox,
                         ) {
                             eprintln!("Failed to update entry: {}", e);
@@ -151,6 +165,7 @@ pub fn create_blank_accordion_widget(
     index: usize,
     app_state: Arc<AppState>,
     app_config: AppConfig,
+    image_cache: ImageCache,
 ) -> eyre::Result<()> {
     let dark_mode = match app_config.get() {
         Ok(config) => config.dark_mode,
@@ -181,7 +196,14 @@ pub fn create_blank_accordion_widget(
 
     vbox.append(&accordion_widget.borrow().widget);
 
-    setup_accordion_expand_handler(index, accordion_widget, overlays, app_state, app_config);
+    setup_accordion_expand_handler(
+        index,
+        accordion_widget,
+        overlays,
+        app_state,
+        app_config,
+        image_cache,
+    );
 
     Ok(())
 }
@@ -192,6 +214,7 @@ fn setup_accordion_expand_handler(
     overlays: Vec<gtk::Overlay>,
     app_state: Arc<AppState>,
     app_config: AppConfig,
+    image_cache: ImageCache,
 ) {
     accordion_widget
         .clone()
@@ -200,6 +223,7 @@ fn setup_accordion_expand_handler(
             if is_expanded {
                 let app_state_clone = app_state.clone();
                 let app_config = app_config.clone();
+                let image_cache = image_cache.clone();
                 let accordion_widget = accordion_widget.clone();
                 let overlays = overlays.clone();
 
@@ -208,6 +232,7 @@ fn setup_accordion_expand_handler(
                 glib::spawn_future_local(async move {
                     load_and_display_images(
                         app_state_clone,
+                        image_cache,
                         app_config.clone(),
                         accordion_widget,
                         overlays,

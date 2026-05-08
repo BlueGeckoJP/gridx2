@@ -1,4 +1,4 @@
-use crate::state::app_state::AppState;
+use crate::image_cache::ImageCache;
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
 use gtk4::{gdk, glib};
@@ -56,7 +56,7 @@ pub struct ImageEntry {
 impl ImageEntry {
     pub fn load_image(
         &mut self,
-        app_state: Arc<AppState>,
+        image_cache: ImageCache,
         thumbnail_size: u32,
         metrics: &ImageEntryMetrics,
     ) -> eyre::Result<()> {
@@ -65,10 +65,10 @@ impl ImageEntry {
         }
 
         let cache_start = Instant::now();
-        let cache_hit = {
-            let mut image_cache = app_state.shared.image_cache()?;
-            image_cache.get(&self.image_path).cloned()
-        };
+        let cache_hit = image_cache.get(
+            self.image_path.clone(),
+            (thumbnail_size as usize, thumbnail_size as usize),
+        )?;
 
         let cache_time = cache_start.elapsed().as_nanos() as usize;
         metrics
@@ -95,8 +95,12 @@ impl ImageEntry {
             let texture = Arc::new(texture);
             self.image = Some(texture.clone());
 
-            if let Ok(mut image_cache) = app_state.shared.image_cache() {
-                image_cache.put(self.image_path.clone(), texture);
+            if let Err(e) = image_cache.put(
+                self.image_path.clone(),
+                (thumbnail_size as usize, thumbnail_size as usize),
+                texture,
+            ) {
+                eprintln!("Failed to update image cache: {e}");
             }
         }
 

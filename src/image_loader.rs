@@ -13,6 +13,7 @@ use crate::{
     config::{app_config::AppConfig, raw_config::SortOrder},
     entry,
     file_utils::sort_by_updated_at,
+    image_cache::ImageCache,
     image_entry::{ImageEntry, ImageEntryMetrics},
     state::app_state::AppState,
     utils::natural_sort,
@@ -81,6 +82,7 @@ async fn display_loaded_images(
 
 pub async fn load_and_display_images(
     app_state: Arc<AppState>,
+    image_cache: ImageCache,
     app_config: AppConfig,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
@@ -122,7 +124,7 @@ pub async fn load_and_display_images(
         counter,
         total_images,
         tx,
-        app_state.clone(),
+        image_cache,
         thumbnail_size,
     );
 
@@ -134,7 +136,7 @@ fn spawn_image_loading_thread(
     counter: Arc<Mutex<f64>>,
     total_images: usize,
     tx: mpsc::Sender<LoadMessage>,
-    app_state: Arc<AppState>,
+    image_cache: ImageCache,
     thumbnail_size: u32,
 ) {
     let mut loaded_entry_clone = loaded_entry_clone.clone();
@@ -146,7 +148,8 @@ fn spawn_image_loading_thread(
             .image_entries
             .par_iter_mut()
             .for_each(|image_entry| {
-                if let Err(e) = image_entry.load_image(app_state.clone(), thumbnail_size, &metrics)
+                if let Err(e) =
+                    image_entry.load_image(image_cache.clone(), thumbnail_size, &metrics)
                 {
                     eprintln!("Failed to load image: {e}");
                 }
