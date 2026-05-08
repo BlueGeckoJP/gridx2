@@ -15,7 +15,7 @@ use crate::{
     file_utils::sort_by_updated_at,
     image_cache::ImageCache,
     image_entry::{ImageEntry, ImageEntryMetrics},
-    state::app_state::AppState,
+    session::Session,
     utils::natural_sort,
     widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
 };
@@ -81,7 +81,7 @@ async fn display_loaded_images(
 }
 
 pub async fn load_and_display_images(
-    app_state: Arc<AppState>,
+    session: Session,
     image_cache: ImageCache,
     app_config: AppConfig,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
@@ -89,7 +89,7 @@ pub async fn load_and_display_images(
     index: usize,
 ) {
     let dir_entry_clone = {
-        let dir_entries = app_state.with_runtime_ctx(|ctx| ctx.dir_entries.clone());
+        let dir_entries = session.dir_entries();
         match dir_entries {
             Ok(entries) => {
                 if index >= entries.len() {

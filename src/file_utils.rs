@@ -1,27 +1,20 @@
-use crate::{config::raw_config::RawConfig, entry, state::app_state::AppState};
+use crate::{config::raw_config::RawConfig, entry, session::Session};
 use std::{
     cmp::Ordering,
     path::Path,
     process::{Command, Stdio},
-    sync::Arc,
 };
 
-pub fn search_and_prepare_entries(
-    app_state: Arc<AppState>,
-    max_depth: u32,
-) -> eyre::Result<(Arc<String>, Arc<Vec<entry::DirEntry>>)> {
-    let dir_path = app_state.with_runtime_ctx(|ctx| ctx.original_dir.clone())?;
+pub fn search_and_prepare_entries(session: Session, max_depth: u32) -> eyre::Result<()> {
+    let dir_path = session.original_dir()?;
 
     let mut entries = entry::DirEntry::search(&dir_path, max_depth)?;
     entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
-    let (original_dir, dir_entries) = app_state.update_runtime_ctx(|ctx| {
-        ctx.dir_entries = Arc::new(entries);
+    session.set_original_dir(dir_path)?;
+    session.replace_dir_entries(entries)?;
 
-        (ctx.original_dir.clone(), ctx.dir_entries.clone())
-    })?;
-
-    Ok((original_dir, dir_entries))
+    Ok(())
 }
 
 pub fn get_relative_path(base_path: &str, path: &str) -> eyre::Result<String> {

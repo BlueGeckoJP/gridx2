@@ -5,19 +5,22 @@ use gtk4::{self as gtk, Button, FileDialog, HeaderBar, gio, glib};
 use gtk4::{Application, ApplicationWindow};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::config::app_config::AppConfig;
 use crate::image_cache::ImageCache;
 use crate::image_loader::load_and_display_images;
+use crate::session::Session;
 use crate::settings_window::SettingsWindow;
 use crate::widgets::accordion_widget::AccordionWidget;
-use crate::{AppState, AppUI, load_css, update_entry};
+use crate::{AppUI, load_css, update_entry};
 
-pub fn build_ui(app: &Application, app_config: AppConfig, image_cache: ImageCache) {
+pub fn build_ui(
+    app: &Application,
+    app_config: AppConfig,
+    image_cache: ImageCache,
+    session: Session,
+) {
     load_css();
-
-    let app_state = Arc::new(AppState::default());
 
     let window = ApplicationWindow::builder()
         .application(app)
@@ -60,7 +63,7 @@ pub fn build_ui(app: &Application, app_config: AppConfig, image_cache: ImageCach
         app,
         &window,
         &app_ui,
-        &app_state,
+        session,
         app_config.clone(),
         image_cache.clone(),
     );
@@ -82,12 +85,11 @@ fn build_action(
     app: &Application,
     window: &ApplicationWindow,
     app_ui: &Rc<RefCell<AppUI>>,
-    app_state: &Arc<AppState>,
+    session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
 ) {
     let app_ui = app_ui.clone();
-    let app_state_clone = app_state.clone();
     let app_config_clone = app_config.clone();
 
     let open_action = gio::SimpleAction::new("open", None);
@@ -97,14 +99,14 @@ fn build_action(
         #[strong]
         app_ui,
         #[strong]
-        app_state_clone,
+        session,
         #[strong]
         image_cache,
         move |_, _| {
             let dialog = FileDialog::new();
             let cancellable = Cancellable::new();
             let app_ui = app_ui.clone();
-            let app_state_clone = app_state_clone.clone();
+            let session = session.clone();
             let app_config = app_config_clone.clone();
             let image_cache = image_cache.clone();
             dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
@@ -112,18 +114,15 @@ fn build_action(
                     && let Some(dir) = path.path()
                     && let Some(dir_str) = dir.to_str()
                 {
-                    if let Err(e) = app_state_clone
-                        .update_runtime_ctx(|ctx| ctx.original_dir = Arc::new(dir_str.to_string()))
-                    {
+                    if let Err(e) = session.set_original_dir(dir_str.to_string()) {
                         eprintln!("Failed to set original_dir: {}", e);
                         return;
                     }
-                    let app_state = app_state_clone.clone();
                     let app_config = app_config.clone();
                     let image_cache = image_cache.clone();
                     glib::spawn_future_local(async move {
                         if let Err(e) = update_entry(
-                            app_state.clone(),
+                            session.clone(),
                             app_config.clone(),
                             image_cache.clone(),
                             &app_ui.borrow().top_vbox,
@@ -163,7 +162,7 @@ pub fn create_blank_accordion_widget(
     count: usize,
     title: &str,
     index: usize,
-    app_state: Arc<AppState>,
+    session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
 ) -> eyre::Result<()> {
@@ -200,7 +199,7 @@ pub fn create_blank_accordion_widget(
         index,
         accordion_widget,
         overlays,
-        app_state,
+        session,
         app_config,
         image_cache,
     );
@@ -212,7 +211,7 @@ fn setup_accordion_expand_handler(
     index: usize,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
-    app_state: Arc<AppState>,
+    session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
 ) {
@@ -221,7 +220,7 @@ fn setup_accordion_expand_handler(
         .borrow()
         .connect_expanded(move |is_expanded| {
             if is_expanded {
-                let app_state_clone = app_state.clone();
+                let session = session.clone();
                 let app_config = app_config.clone();
                 let image_cache = image_cache.clone();
                 let accordion_widget = accordion_widget.clone();
@@ -231,7 +230,7 @@ fn setup_accordion_expand_handler(
 
                 glib::spawn_future_local(async move {
                     load_and_display_images(
-                        app_state_clone,
+                        session,
                         image_cache,
                         app_config.clone(),
                         accordion_widget,
