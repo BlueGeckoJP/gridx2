@@ -1,7 +1,6 @@
-use crate::{image_entry::ImageEntry, state::app_state::AppState};
+use crate::image_entry::ImageEntry;
 use std::path;
 use std::path::Path;
-use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
@@ -18,12 +17,7 @@ impl DirEntry {
         }
     }
 
-    pub fn search(root: &str, app_state: Arc<AppState>) -> eyre::Result<Vec<DirEntry>> {
-        let max_depth = {
-            let app_config = app_state.shared.config()?;
-            app_config.max_depth
-        };
-
+    pub fn search(root: &str, max_depth: u32) -> eyre::Result<Vec<DirEntry>> {
         let mut entries: Vec<DirEntry> = Vec::new();
         let max_depth = count_depth(to_absolute(root)?) + max_depth;
 

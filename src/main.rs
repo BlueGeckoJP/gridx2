@@ -12,6 +12,7 @@ mod widgets;
 
 use std::sync::Arc;
 
+use crate::config::app_config::AppConfig;
 use crate::file_utils::{get_relative_path, search_and_prepare_entries};
 use crate::state::app_state::AppState;
 use crate::ui_builder::{build_ui, create_blank_accordion_widget};
@@ -26,21 +27,31 @@ pub struct AppUI {
 fn main() -> glib::ExitCode {
     gtk::init().expect("Failed to initialize GTK");
 
+    let dark_mode = theme::is_gtk_dark_theme();
+    let app_config = AppConfig::init(dark_mode);
+
     let app = Application::builder()
         .application_id("me.bluegecko.gridx2")
         .build();
 
     app.connect_activate(move |app| {
-        build_ui(app);
+        build_ui(app, app_config.clone());
     });
 
     app.run()
 }
 
-fn update_entry(app_state: Arc<AppState>, vbox: &gtk::Box) -> eyre::Result<()> {
+fn update_entry(
+    app_state: Arc<AppState>,
+    app_config: AppConfig,
+    vbox: &gtk::Box,
+) -> eyre::Result<()> {
     clear_ui(vbox);
 
-    let (original_dir, dir_entries) = search_and_prepare_entries(app_state.clone())?;
+    let config = app_config.get()?;
+    let max_depth = config.max_depth;
+
+    let (original_dir, dir_entries) = search_and_prepare_entries(app_state.clone(), max_depth)?;
 
     for (index, entry) in dir_entries.iter().enumerate() {
         let title = format!(
@@ -55,6 +66,7 @@ fn update_entry(app_state: Arc<AppState>, vbox: &gtk::Box) -> eyre::Result<()> {
             &title,
             index,
             app_state.clone(),
+            app_config.clone(),
         )?;
     }
 

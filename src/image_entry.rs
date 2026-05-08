@@ -57,16 +57,12 @@ impl ImageEntry {
     pub fn load_image(
         &mut self,
         app_state: Arc<AppState>,
+        thumbnail_size: u32,
         metrics: &ImageEntryMetrics,
     ) -> eyre::Result<()> {
         if self.image.is_some() {
             return Ok(());
         }
-
-        let thumbnail_size = {
-            let app_config = app_state.shared.config()?;
-            app_config.thumbnail_size
-        };
 
         let cache_start = Instant::now();
         let cache_hit = {
