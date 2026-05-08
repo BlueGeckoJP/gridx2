@@ -47,7 +47,7 @@ impl AppConfig {
         Ok(self.inner.read().map_err(|e| eyre::eyre!("{e}"))?.clone())
     }
 
-    pub fn update(&mut self, new_config: RawConfig) -> eyre::Result<()> {
+    pub fn update(&self, new_config: RawConfig) -> eyre::Result<()> {
         *self.inner.write().map_err(|e| eyre::eyre!("{e}"))? = new_config;
         let config_store: ConfigStore = self
             .inner
