@@ -22,28 +22,31 @@ impl ImageEntryMetrics {
         let misses = self.cache_misses.load(Ordering::Relaxed);
         let total = hits + misses;
 
-        if total > 0 {
-            let hits_percent = (hits as f64 / total as f64) * 100.0;
-
-            let avg_disk_time = if misses > 0 {
-                self.disk_load_time_ms.load(Ordering::Relaxed) as f64 / misses as f64
-            } else {
-                0.0
-            };
-
-            let cache_time_ns = self.cache_access_time_ns.load(Ordering::Relaxed);
-            let avg_cache_time_ns = cache_time_ns as f64 / total as f64;
-            let avg_cache_time_ms = avg_cache_time_ns / 1_000_000.0;
-
-            println!("\nCache stats:");
-            println!("Total accesses: {total}");
-            println!("Cache hits: {hits} ({hits_percent:.2}%)");
-            println!("Cache misses: {misses}");
-            println!("Average disk read time: {avg_disk_time:.2}ms");
-            println!(
-                "Average cache access time: {avg_cache_time_ms:.2}ms (total {avg_cache_time_ns:.2}ns)"
-            );
+        if total == 0 {
+            println!("No cache accesses recorded.");
+            return;
         }
+
+        let hits_percent = (hits as f64 / total as f64) * 100.0;
+
+        let avg_disk_time = if misses > 0 {
+            self.disk_load_time_ms.load(Ordering::Relaxed) as f64 / misses as f64
+        } else {
+            0.0
+        };
+
+        let cache_time_ns = self.cache_access_time_ns.load(Ordering::Relaxed);
+        let avg_cache_time_ns = cache_time_ns as f64 / total as f64;
+        let avg_cache_time_ms = avg_cache_time_ns / 1_000_000.0;
+
+        println!("\nCache stats:");
+        println!("Total accesses: {total}");
+        println!("Cache hits: {hits} ({hits_percent:.2}%)");
+        println!("Cache misses: {misses}");
+        println!("Average disk read time: {avg_disk_time:.2}ms");
+        println!(
+            "Average cache access time: {avg_cache_time_ms:.2}ms (total {avg_cache_time_ns:.2}ns)"
+        );
     }
 }
 
