@@ -2,6 +2,7 @@ mod config;
 mod directory_section;
 mod entry;
 mod file_utils;
+mod image_actions;
 mod image_cache;
 mod image_entry;
 mod image_loader;
