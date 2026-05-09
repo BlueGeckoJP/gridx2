@@ -7,11 +7,10 @@ mod image_cache;
 mod image_entry;
 mod image_loader;
 mod session;
-mod settings_window;
 mod theme;
+mod ui;
 mod ui_builder;
 mod utils;
-mod widgets;
 
 use crate::config::app_config::AppConfig;
 use crate::image_cache::ImageCache;

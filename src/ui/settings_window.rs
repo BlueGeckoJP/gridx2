@@ -1,6 +1,4 @@
-use crate::config::app_config::AppConfig;
-use crate::config::raw_config::SORT_ORDER_VARIANTS;
-use gtk4::glib::object::Cast;
+use crate::config::raw_config::{RawConfig, SORT_ORDER_VARIANTS};
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
@@ -10,7 +8,14 @@ pub struct SettingsWindow {
 }
 
 impl SettingsWindow {
-    pub fn new(parent: &ApplicationWindow, app_config: AppConfig) -> eyre::Result<Self> {
+    pub fn new<
+        F: Fn(&ApplicationWindow, &SpinButton, &SpinButton, &gtk::Entry, &DropDown, &gtk::Switch)
+            + 'static,
+    >(
+        parent: &ApplicationWindow,
+        current_config: &RawConfig,
+        on_save: F,
+    ) -> eyre::Result<Self> {
         let window = ApplicationWindow::builder()
             .title("Settings")
             .default_width(300)
@@ -97,7 +102,6 @@ impl SettingsWindow {
         button_box.append(&button_cancel);
         vbox.append(&button_box);
 
-        let current_config = app_config.get()?;
         max_depth_spin.set_value(current_config.max_depth as f64);
         thumbnail_spin.set_value(current_config.thumbnail_size as f64);
         command_entry.set_text(&current_config.open_command.join(" "));
@@ -119,48 +123,15 @@ impl SettingsWindow {
         button_save.connect_clicked(glib::clone!(
             #[weak]
             window,
-            #[weak]
-            max_depth_spin,
-            #[weak]
-            thumbnail_spin,
-            #[weak]
-            command_entry,
-            #[weak]
-            sort_order_dropdown,
-            #[weak]
-            descending_switch,
-            #[strong]
-            app_config,
             move |_| {
-                let mut config = match app_config.get() {
-                    Ok(config) => config,
-                    Err(e) => {
-                        eprintln!("Failed to get current config: {e}");
-                        return;
-                    }
-                };
-
-                config.max_depth = max_depth_spin.value() as u32;
-                config.thumbnail_size = thumbnail_spin.value() as u32;
-                config.open_command = command_entry
-                    .text()
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .collect();
-                config.sort_order = sort_order_dropdown
-                    .selected_item()
-                    .and_then(|item| {
-                        item.downcast_ref::<gtk::StringObject>()
-                            .and_then(|s| s.string().parse().ok())
-                    })
-                    .unwrap_or(config.sort_order);
-                config.descending = descending_switch.is_active();
-
-                app_config.update(config).unwrap_or_else(|e| {
-                    eprintln!("Failed to update config: {e}");
-                });
-
-                window.close();
+                on_save(
+                    &window,
+                    &max_depth_spin,
+                    &thumbnail_spin,
+                    &command_entry,
+                    &sort_order_dropdown,
+                    &descending_switch,
+                )
             }
         ));
 

@@ -15,8 +15,8 @@ use crate::{
     file_utils::sort_by_updated_at,
     image_cache::ImageCache,
     image_entry::{ImageEntry, ImageEntryMetrics},
+    ui::widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
     utils::natural_sort,
-    widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
 };
 
 enum LoadMessage {
