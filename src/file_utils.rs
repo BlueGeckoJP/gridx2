@@ -1,21 +1,9 @@
-use crate::{config::raw_config::RawConfig, entry, session::Session};
+use crate::config::raw_config::RawConfig;
 use std::{
     cmp::Ordering,
     path::Path,
     process::{Command, Stdio},
 };
-
-pub fn search_and_prepare_entries(session: Session, max_depth: u32) -> eyre::Result<()> {
-    let dir_path = session.original_dir()?;
-
-    let mut entries = entry::DirEntry::search(&dir_path, max_depth)?;
-    entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
-
-    session.set_original_dir(dir_path)?;
-    session.replace_dir_entries(entries)?;
-
-    Ok(())
-}
 
 pub fn get_relative_path(base_path: &str, path: &str) -> eyre::Result<String> {
     let base_path = Path::new(base_path).canonicalize()?;

@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use crate::AppUI;
 use crate::config::app_config::AppConfig;
-use crate::file_utils::{get_relative_path, search_and_prepare_entries};
+use crate::directory_section::DirectorySection;
 use crate::image_cache::ImageCache;
 use crate::image_loader::load_and_display_images;
 use crate::session::Session;
@@ -272,27 +272,31 @@ fn update_entry(
     image_cache: ImageCache,
     vbox: &gtk::Box,
 ) -> eyre::Result<()> {
+    let sections = DirectorySection::load_sections(session.clone(), app_config.clone())?;
+    render_directory_sections(vbox, &sections, session, app_config, image_cache)
+}
+
+fn clear_ui(vbox: &gtk::Box) {
+    while let Some(child) = vbox.first_child() {
+        vbox.remove(&child);
+    }
+}
+
+fn render_directory_sections(
+    vbox: &gtk::Box,
+    sections: &[DirectorySection],
+    session: Session,
+    app_config: AppConfig,
+    image_cache: ImageCache,
+) -> eyre::Result<()> {
     clear_ui(vbox);
 
-    let config = app_config.get()?;
-    let max_depth = config.max_depth;
-
-    search_and_prepare_entries(session.clone(), max_depth)?;
-
-    let (original_dir, dir_entries) = (session.original_dir()?, session.dir_entries()?);
-
-    for (index, entry) in dir_entries.iter().enumerate() {
-        let title = format!(
-            "{} | {} entries",
-            get_relative_path(&original_dir, &entry.dir_path)?,
-            entry.image_entries.len()
-        );
-
+    for section in sections {
         create_blank_accordion_widget(
             vbox,
-            entry.image_entries.len(),
-            &title,
-            index,
+            section.image_count(),
+            section.title(),
+            section.index(),
             session.clone(),
             app_config.clone(),
             image_cache.clone(),
@@ -300,10 +304,4 @@ fn update_entry(
     }
 
     Ok(())
-}
-
-fn clear_ui(vbox: &gtk::Box) {
-    while let Some(child) = vbox.first_child() {
-        vbox.remove(&child);
-    }
 }
