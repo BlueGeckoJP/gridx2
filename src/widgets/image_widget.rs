@@ -2,22 +2,15 @@ use gtk4 as gtk;
 use gtk4::Picture;
 use gtk4::gdk::Texture;
 use gtk4::prelude::{BoxExt, TextureExt, WidgetExt};
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use crate::config::app_config::AppConfig;
-use crate::file_utils::open_with_xdg_open;
 
 #[derive(Clone)]
 pub struct ImageWidget {
     widget: gtk::Box,
     picture: Picture,
-    image_path: Rc<RefCell<Option<String>>>,
-    app_config: AppConfig,
 }
 
 impl ImageWidget {
-    pub fn new(app_config: AppConfig) -> Self {
+    pub fn new() -> Self {
         let widget = gtk::Box::new(gtk::Orientation::Vertical, 0);
         widget.set_halign(gtk::Align::Center);
         widget.set_valign(gtk::Align::Center);
@@ -28,51 +21,22 @@ impl ImageWidget {
 
         widget.append(&picture);
 
-        let image_path = Rc::new(RefCell::new(None));
-
-        let image_widget = Self {
-            widget,
-            picture,
-            image_path,
-            app_config,
-        };
-
-        image_widget.setup_click_handler();
-
-        image_widget
+        Self { widget, picture }
     }
 
-    fn setup_click_handler(&self) {
-        let image_path = self.image_path.clone();
-        let app_config = self.app_config.clone();
-
+    pub fn connect_clicked<F: Fn() + 'static>(&self, callback: F) {
         let click_gesture = gtk::GestureClick::new();
         click_gesture.connect_released(move |_gesture, _n_press, _x, _y| {
-            let image_path = image_path.borrow().clone();
-            if let Some(path) = image_path {
-                let config = match app_config.get() {
-                    Ok(config) => config,
-                    Err(e) => {
-                        println!("Failed to get app config: {}", e);
-                        return;
-                    }
-                };
-                let open_command = config.open_command.clone();
-                let err = open_with_xdg_open(path, open_command);
-                if let Err(e) = err {
-                    println!("Failed to open image: {}", e);
-                }
-            }
+            callback();
         });
 
         self.picture.add_controller(click_gesture);
     }
 
-    pub fn set_image(&mut self, path: &str, texture: &Texture) {
+    pub fn set_image(&self, texture: &Texture) {
         self.picture.set_paintable(Some(texture));
         self.picture
             .set_size_request(texture.width(), texture.height());
-        self.image_path.replace(Some(path.to_string()));
     }
 
     pub fn widget(&self) -> &gtk::Box {

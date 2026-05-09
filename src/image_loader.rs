@@ -12,7 +12,7 @@ use std::{
 use crate::{
     config::{app_config::AppConfig, raw_config::SortOrder},
     entry,
-    file_utils::sort_by_updated_at,
+    file_utils::{open_with_xdg_open, sort_by_updated_at},
     image_cache::ImageCache,
     image_entry::{ImageEntry, ImageEntryMetrics},
     session::Session,
@@ -57,8 +57,25 @@ async fn display_loaded_images(
 
     for (index, image_entry) in sorted_entries.iter().enumerate() {
         if let Some(img) = &image_entry.image {
-            let mut image_widget = ImageWidget::new(app_config.clone());
-            image_widget.set_image(&image_entry.image_path, img.as_ref());
+            let image_widget = ImageWidget::new();
+            image_widget.set_image(img);
+
+            let image_path = image_entry.image_path.clone();
+            let app_config = app_config.clone();
+
+            image_widget.connect_clicked(move || {
+                let config = match app_config.get() {
+                    Ok(config) => config,
+                    Err(e) => {
+                        eprintln!("Failed to get app config: {e}");
+                        return;
+                    }
+                };
+
+                if let Err(e) = open_with_xdg_open(image_path.clone(), config.open_command) {
+                    eprintln!("Failed to open image: {e}");
+                }
+            });
 
             let accordion_widget = accordion_widget.clone();
             let overlays = overlays.clone();
