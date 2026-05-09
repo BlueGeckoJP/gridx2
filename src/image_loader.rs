@@ -31,31 +31,7 @@ async fn display_loaded_images(
     overlays: Vec<gtk::Overlay>,
     app_config: AppConfig,
 ) {
-    let mut sorted_entries = image_entries.clone();
-
-    let config = match app_config.get() {
-        Ok(config) => config,
-        Err(e) => {
-            eprintln!("Failed to get app config: {e}");
-            return;
-        }
-    };
-
-    let sort_order = config.sort_order;
-    let descending = config.descending;
-
-    match sort_order {
-        SortOrder::Name => sorted_entries.sort_by(|a, b| {
-            natural_sort(a.image_path.as_str(), b.image_path.as_str(), descending)
-                .unwrap_or(Ordering::Equal)
-        }),
-        SortOrder::UpdatedAt => sorted_entries.sort_by(|a, b| {
-            sort_by_updated_at(a.image_path.as_str(), b.image_path.as_str(), descending)
-                .unwrap_or(Ordering::Equal)
-        }),
-    }
-
-    for (index, image_entry) in sorted_entries.iter().enumerate() {
+    for (index, image_entry) in image_entries.iter().enumerate() {
         if let Some(img) = &image_entry.image {
             let image_widget = ImageWidget::new();
             image_widget.set_image(img);
@@ -223,5 +199,40 @@ async fn handle_load_messages(
         }
     };
 
+    let image_entries = sort_loaded_images(image_entries, &app_config);
     display_loaded_images(image_entries, accordion_widget, overlays, app_config).await;
+}
+
+fn sort_loaded_images(
+    mut image_entries: Vec<ImageEntry>,
+    app_config: &AppConfig,
+) -> Vec<ImageEntry> {
+    let config = match app_config.get() {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Failed to get app config: {e}");
+            return image_entries;
+        }
+    };
+
+    match config.sort_order {
+        SortOrder::Name => image_entries.sort_by(|a, b| {
+            natural_sort(
+                a.image_path.as_str(),
+                b.image_path.as_str(),
+                config.descending,
+            )
+            .unwrap_or(Ordering::Equal)
+        }),
+        SortOrder::UpdatedAt => image_entries.sort_by(|a, b| {
+            sort_by_updated_at(
+                a.image_path.as_str(),
+                b.image_path.as_str(),
+                config.descending,
+            )
+            .unwrap_or(Ordering::Equal)
+        }),
+    }
+
+    image_entries
 }
