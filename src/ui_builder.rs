@@ -229,14 +229,27 @@ fn setup_accordion_expand_handler(
 
                 prepare_accordion_for_loading(&accordion_widget);
 
+                let dir_entry = match session.dir_entries() {
+                    Ok(entries) => match entries.get(index) {
+                        Some(entry) => entry.clone(),
+                        None => {
+                            eprintln!("No directory entry found for index {index}");
+                            return;
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Failed to get directory entries: {e}");
+                        return;
+                    }
+                };
+
                 glib::spawn_future_local(async move {
                     load_and_display_images(
-                        session,
+                        dir_entry,
                         image_cache,
                         app_config.clone(),
                         accordion_widget,
                         overlays,
-                        index,
                     )
                     .await;
                 });

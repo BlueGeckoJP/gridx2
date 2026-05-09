@@ -11,11 +11,10 @@ use std::{
 
 use crate::{
     config::{app_config::AppConfig, raw_config::SortOrder},
-    entry,
+    entry::{self, DirEntry},
     file_utils::sort_by_updated_at,
     image_cache::ImageCache,
     image_entry::{ImageEntry, ImageEntryMetrics},
-    session::Session,
     utils::natural_sort,
     widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
 };
@@ -66,32 +65,13 @@ async fn display_loaded_images(
 }
 
 pub async fn load_and_display_images(
-    session: Session,
+    dir_entry: DirEntry,
     image_cache: ImageCache,
     app_config: AppConfig,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     overlays: Vec<gtk::Overlay>,
-    index: usize,
 ) {
-    let dir_entry_clone = {
-        let dir_entries = session.dir_entries();
-        match dir_entries {
-            Ok(entries) => {
-                if index >= entries.len() {
-                    eprintln!("Invalid index: {index}");
-                    return;
-                }
-
-                entries[index].clone()
-            }
-            Err(e) => {
-                eprintln!("Failed to get dir_entries: {e}");
-                return;
-            }
-        }
-    };
-
-    let total_images = dir_entry_clone.image_entries.len();
+    let total_images = dir_entry.image_entries.len();
     let counter = Arc::new(Mutex::new(0f64));
 
     let (tx, rx) = mpsc::channel::<LoadMessage>();
@@ -105,7 +85,7 @@ pub async fn load_and_display_images(
     };
 
     spawn_image_loading_thread(
-        &dir_entry_clone,
+        &dir_entry,
         counter,
         total_images,
         tx,
