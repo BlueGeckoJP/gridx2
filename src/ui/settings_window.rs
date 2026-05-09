@@ -1,4 +1,5 @@
 use crate::config::raw_config::{RawConfig, SORT_ORDER_VARIANTS};
+use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
@@ -8,12 +9,9 @@ pub struct SettingsWindow {
 }
 
 impl SettingsWindow {
-    pub fn new<
-        F: Fn(&ApplicationWindow, &SpinButton, &SpinButton, &gtk::Entry, &DropDown, &gtk::Switch)
-            + 'static,
-    >(
+    pub fn new<F: Fn(RawConfig) + 'static>(
         parent: &ApplicationWindow,
-        current_config: &RawConfig,
+        current_config: RawConfig,
         on_save: F,
     ) -> eyre::Result<Self> {
         let window = ApplicationWindow::builder()
@@ -124,14 +122,28 @@ impl SettingsWindow {
             #[weak]
             window,
             move |_| {
-                on_save(
-                    &window,
-                    &max_depth_spin,
-                    &thumbnail_spin,
-                    &command_entry,
-                    &sort_order_dropdown,
-                    &descending_switch,
-                )
+                let config = RawConfig {
+                    max_depth: max_depth_spin.value() as u32,
+                    thumbnail_size: thumbnail_spin.value() as u32,
+                    open_command: command_entry
+                        .text()
+                        .split_whitespace()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    sort_order: sort_order_dropdown
+                        .selected_item()
+                        .and_then(|item| {
+                            item.downcast_ref::<gtk::StringObject>()
+                                .and_then(|s| s.string().parse().ok())
+                        })
+                        .unwrap_or(current_config.sort_order.clone()),
+                    descending: descending_switch.is_active(),
+                    dark_mode: current_config.dark_mode,
+                };
+
+                on_save(config);
+
+                window.close();
             }
         ));
 

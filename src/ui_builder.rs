@@ -1,7 +1,6 @@
 use gtk4::gio::Cancellable;
 use gtk4::gio::prelude::{ActionMapExt, FileExt};
-use gtk4::glib::object::Cast;
-use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
+use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, Button, CssProvider, FileDialog, HeaderBar, gdk, gio, glib};
 use gtk4::{Application, ApplicationWindow};
 use std::cell::RefCell;
@@ -154,46 +153,11 @@ fn build_action(
             };
 
             let app_config = app_config.clone();
-            let settings_window = SettingsWindow::new(
-                &window,
-                &config,
-                move |window,
-                      max_depth_spin,
-                      thumbnail_spin,
-                      command_entry,
-                      sort_order_dropdown,
-                      descending_switch| {
-                    let mut config = match app_config.get() {
-                        Ok(config) => config,
-                        Err(e) => {
-                            eprintln!("Failed to get app config: {e}");
-                            return;
-                        }
-                    };
-
-                    config.max_depth = max_depth_spin.value() as u32;
-                    config.thumbnail_size = thumbnail_spin.value() as u32;
-                    config.open_command = command_entry
-                        .text()
-                        .split_whitespace()
-                        .map(|s| s.to_string())
-                        .collect();
-                    config.sort_order = sort_order_dropdown
-                        .selected_item()
-                        .and_then(|item| {
-                            item.downcast_ref::<gtk::StringObject>()
-                                .and_then(|s| s.string().parse().ok())
-                        })
-                        .unwrap_or(config.sort_order);
-                    config.descending = descending_switch.is_active();
-
-                    app_config.update(config).unwrap_or_else(|e| {
-                        eprintln!("Failed to update app config: {e}");
-                    });
-
-                    window.close();
-                },
-            );
+            let settings_window = SettingsWindow::new(&window, config, move |config| {
+                if let Err(e) = app_config.update(config) {
+                    eprintln!("Failed to save config: {e}");
+                }
+            });
 
             match settings_window {
                 Ok(settings_window) => {
