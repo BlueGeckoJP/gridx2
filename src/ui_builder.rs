@@ -97,7 +97,7 @@ pub fn build_ui(
 
 pub fn create_blank_accordion_widget(
     vbox: &gtk::Box,
-    count: usize,
+    image_count: usize,
     title: &str,
     index: usize,
     session: Session,
@@ -113,30 +113,12 @@ pub fn create_blank_accordion_widget(
     };
 
     let accordion_widget = Rc::new(RefCell::new(AccordionWidget::new(title, dark_mode)?));
-    let mut overlays = Vec::new();
-
-    let config = app_config.get()?;
-    let thumbnail_size = config.thumbnail_size as i32;
-
-    for _ in 0..count {
-        let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        fixed_size_container.set_size_request(thumbnail_size, thumbnail_size);
-        fixed_size_container.set_halign(gtk::Align::Center);
-        fixed_size_container.set_valign(gtk::Align::Center);
-
-        let overlay = gtk::Overlay::new();
-        overlay.set_child(Some(&fixed_size_container));
-
-        accordion_widget.borrow().flow_box.append(&overlay);
-        overlays.push(overlay);
-    }
-
     vbox.append(&accordion_widget.borrow().widget);
 
     setup_accordion_expand_handler(
         index,
+        image_count,
         accordion_widget,
-        overlays,
         session,
         app_config,
         image_cache,
@@ -147,8 +129,8 @@ pub fn create_blank_accordion_widget(
 
 fn setup_accordion_expand_handler(
     index: usize,
+    image_count: usize,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
-    overlays: Vec<gtk::Overlay>,
     session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
@@ -162,9 +144,22 @@ fn setup_accordion_expand_handler(
                 let app_config = app_config.clone();
                 let image_cache = image_cache.clone();
                 let accordion_widget = accordion_widget.clone();
-                let overlays = overlays.clone();
 
-                prepare_accordion_for_loading(&accordion_widget);
+                let mut overlays = Vec::new();
+                let thumbnail_size = match app_config.get() {
+                    Ok(config) => config.thumbnail_size as i32,
+                    Err(e) => {
+                        eprintln!("Failed to get app config: {e}");
+                        300
+                    }
+                };
+
+                prepare_accordion_for_loading(
+                    &accordion_widget,
+                    &mut overlays,
+                    thumbnail_size,
+                    image_count,
+                );
 
                 let dir_entry = match session.dir_entries() {
                     Ok(entries) => match entries.get(index) {
@@ -194,11 +189,29 @@ fn setup_accordion_expand_handler(
         });
 }
 
-fn prepare_accordion_for_loading(accordion_widget: &Rc<RefCell<AccordionWidget>>) {
+fn prepare_accordion_for_loading(
+    accordion_widget: &Rc<RefCell<AccordionWidget>>,
+    overlays: &mut Vec<gtk::Overlay>,
+    thumbnail_size: i32,
+    image_count: usize,
+) {
     let accordion_widget = accordion_widget.borrow();
 
     while let Some(child) = accordion_widget.flow_box.first_child() {
         accordion_widget.flow_box.remove(&child);
+    }
+
+    for _ in 0..image_count {
+        let fixed_size_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        fixed_size_container.set_size_request(thumbnail_size, thumbnail_size);
+        fixed_size_container.set_halign(gtk::Align::Center);
+        fixed_size_container.set_valign(gtk::Align::Center);
+
+        let overlay = gtk::Overlay::new();
+        overlay.set_child(Some(&fixed_size_container));
+
+        //accordion_widget.flow_box.append(&overlay);
+        overlays.push(overlay);
     }
 
     accordion_widget.progress_bar.set_fraction(0.0);
