@@ -1,17 +1,17 @@
 use gtk4::gio::Cancellable;
-use gtk4::gio::prelude::{ActionMapExt, FileExt};
-use gtk4::prelude::{ActionableExt, BoxExt, ButtonExt, GtkWindowExt, WidgetExt};
-use gtk4::{self as gtk, Button, CssProvider, FileDialog, HeaderBar, gdk, gio, glib};
-use gtk4::{Application, ApplicationWindow};
+use gtk4::gio::prelude::FileExt;
+use gtk4::prelude::{BoxExt, WidgetExt};
+use gtk4::{self as gtk, CssProvider, FileDialog, glib};
+use gtk4::{Application, gdk};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::AppUI;
 use crate::config::app_config::AppConfig;
 use crate::directory_section::DirectorySection;
 use crate::image_cache::ImageCache;
 use crate::image_loader::load_and_display_images;
 use crate::session::Session;
+use crate::ui::main_window::MainWindow;
 use crate::ui::settings_window::SettingsWindow;
 use crate::ui::widgets::accordion_widget::AccordionWidget;
 
@@ -23,153 +23,76 @@ pub fn build_ui(
 ) {
     load_css();
 
-    let window = ApplicationWindow::builder()
-        .application(app)
-        .default_width(800)
-        .default_height(600)
-        .title("gridx2")
-        .build();
+    let main_window = MainWindow::new(app);
 
-    // Build layout
-    let vbox = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(5)
-        .build();
+    let app_config_for_open = app_config.clone();
+    main_window.set_open_callback(move |window, container| {
+        let dialog = FileDialog::new();
+        let cancellable = Cancellable::new();
 
-    let app_ui = Rc::new(RefCell::new(AppUI {
-        top_vbox: vbox.clone(),
-    }));
+        let session = session.clone();
+        let app_config = app_config_for_open.clone();
+        let image_cache = image_cache.clone();
+        let container = container.clone();
 
-    // Build header bar
-    let header_bar = HeaderBar::new();
-    header_bar.set_title_widget(Some(&gtk::Label::new(Some("gridx2"))));
-
-    let button_open = Button::new();
-    let icon_open = gtk::Image::from_icon_name("document-open-symbolic");
-    button_open.set_child(Some(&icon_open));
-    button_open.set_action_name(Some("app.open"));
-
-    let button_settings = Button::new();
-    let icon_settings = gtk::Image::from_icon_name("preferences-system-symbolic");
-    button_settings.set_child(Some(&icon_settings));
-    button_settings.set_action_name(Some("app.settings"));
-
-    header_bar.pack_start(&button_open);
-    header_bar.pack_end(&button_settings);
-
-    window.set_titlebar(Some(&header_bar));
-
-    // Build actions
-    build_action(
-        app,
-        &window,
-        &app_ui,
-        session,
-        app_config.clone(),
-        image_cache.clone(),
-    );
-
-    // Build a scrollable window
-    let scrollable_window = gtk::ScrolledWindow::builder()
-        .hscrollbar_policy(gtk::PolicyType::Never)
-        .vscrollbar_policy(gtk::PolicyType::Automatic)
-        .child(&vbox)
-        .build();
-
-    window.set_child(Some(&scrollable_window));
-
-    // Finalize
-    window.present();
-}
-
-fn build_action(
-    app: &Application,
-    window: &ApplicationWindow,
-    app_ui: &Rc<RefCell<AppUI>>,
-    session: Session,
-    app_config: AppConfig,
-    image_cache: ImageCache,
-) {
-    let app_ui = app_ui.clone();
-    let app_config_clone = app_config.clone();
-
-    let open_action = gio::SimpleAction::new("open", None);
-    open_action.connect_activate(glib::clone!(
-        #[weak]
-        window,
-        #[strong]
-        app_ui,
-        #[strong]
-        session,
-        #[strong]
-        image_cache,
-        move |_, _| {
-            let dialog = FileDialog::new();
-            let cancellable = Cancellable::new();
-            let app_ui = app_ui.clone();
-            let session = session.clone();
-            let app_config = app_config_clone.clone();
-            let image_cache = image_cache.clone();
-            dialog.select_folder(Some(&window), Some(&cancellable), move |result| {
-                if let Ok(path) = result
-                    && let Some(dir) = path.path()
-                    && let Some(dir_str) = dir.to_str()
-                {
-                    if let Err(e) = session.set_original_dir(dir_str.to_string()) {
-                        eprintln!("Failed to set original_dir: {}", e);
+        dialog.select_folder(Some(window), Some(&cancellable), move |result| {
+            let path = match result {
+                Ok(path) => match path.path() {
+                    Some(dir) => dir.to_string_lossy().to_string(),
+                    None => {
+                        eprintln!("No directory selected");
                         return;
                     }
-                    let app_config = app_config.clone();
-                    let image_cache = image_cache.clone();
-                    glib::spawn_future_local(async move {
-                        if let Err(e) = update_entry(
-                            session.clone(),
-                            app_config.clone(),
-                            image_cache.clone(),
-                            &app_ui.borrow().top_vbox,
-                        ) {
-                            eprintln!("Failed to update entry: {}", e);
-                        }
-                    });
-                }
-            });
-        }
-    ));
-    app.add_action(&open_action);
-
-    let settings_action = gio::SimpleAction::new("settings", None);
-    settings_action.connect_activate(glib::clone!(
-        #[weak]
-        window,
-        #[strong]
-        app_config,
-        move |_, _| {
-            let config = match app_config.get() {
-                Ok(config) => config,
+                },
                 Err(e) => {
-                    eprintln!("Failed to get app config: {e}");
+                    eprintln!("Failed to open file dialog: {e}");
                     return;
                 }
             };
 
-            let app_config = app_config.clone();
-            let settings_window = SettingsWindow::new(&window, config, move |config| {
-                if let Err(e) = app_config.update(config) {
-                    eprintln!("Failed to save config: {e}");
+            if let Err(e) = session.set_original_dir(path) {
+                eprintln!("Failed to set original_dir: {e}");
+                return;
+            }
+
+            glib::spawn_future_local(async move {
+                if let Err(e) = update_entry(
+                    session.clone(),
+                    app_config.clone(),
+                    image_cache.clone(),
+                    container.clone(),
+                ) {
+                    eprintln!("Failed to update entry: {e}");
                 }
             });
+        });
+    });
 
-            match settings_window {
-                Ok(settings_window) => {
-                    settings_window.show();
-                }
-                Err(e) => {
-                    eprintln!("Failed to create settings window: {e}");
-                }
+    main_window.set_settings_callback(move |window| {
+        let config = match app_config.get() {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Failed to get app config: {e}");
+                return;
+            }
+        };
+
+        let app_config = app_config.clone();
+        let settings_window = SettingsWindow::new(window, config, move |config| {
+            if let Err(e) = app_config.update(config) {
+                eprintln!("Failed to save config: {e}");
+            }
+        });
+
+        match settings_window {
+            Ok(settings_window) => {
+                settings_window.show();
+            }
+            Err(e) => {
+                eprintln!("Failed to create settings window: {e}");
             }
         }
-    ));
-    app.add_action(&settings_action);
+    });
 }
 
 pub fn create_blank_accordion_widget(
@@ -297,10 +220,10 @@ fn update_entry(
     session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
-    vbox: &gtk::Box,
+    vbox: gtk::Box,
 ) -> eyre::Result<()> {
     let sections = DirectorySection::load_sections(session.clone(), app_config.clone())?;
-    render_directory_sections(vbox, &sections, session, app_config, image_cache)
+    render_directory_sections(&vbox, &sections, session, app_config, image_cache)
 }
 
 fn clear_ui(vbox: &gtk::Box) {

@@ -20,10 +20,6 @@ use gtk4 as gtk;
 use gtk4::prelude::{ApplicationExt, ApplicationExtManual};
 use gtk4::{Application, glib};
 
-pub struct AppUI {
-    top_vbox: gtk::Box,
-}
-
 fn main() -> glib::ExitCode {
     gtk::init().expect("Failed to initialize GTK");
 
