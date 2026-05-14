@@ -9,10 +9,14 @@ use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
 
+/// Returns whether the command text contains the required `<path>` placeholder.
 fn has_path_placeholder(text: &str) -> bool {
     text.split_whitespace().any(|part| part == "<path>")
 }
 
+/// Updates the settings form state to reflect whether the open command is currently valid.
+///
+/// A valid command must include `<path>` so the selected image path can be injected before launch.
 fn update_open_command_validation(
     command_entry: &gtk::Entry,
     error_label: &gtk::Label,
