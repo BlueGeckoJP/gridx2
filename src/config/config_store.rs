@@ -39,8 +39,8 @@ impl ConfigStore {
         let default = RawConfig::default();
 
         RawConfig {
-            max_depth: self.max_depth.unwrap_or(default.max_depth),
-            thumbnail_size: self.thumbnail_size.unwrap_or(default.thumbnail_size),
+            max_depth: self.max_depth.unwrap_or(default.max_depth).max(1),
+            thumbnail_size: self.thumbnail_size.unwrap_or(default.thumbnail_size).max(1),
             open_command: self.open_command.unwrap_or(default.open_command),
             dark_mode: self.dark_mode.unwrap_or(gtk_dark_mode),
             sort_order: match self.sort_order.as_deref() {
