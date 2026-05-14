@@ -9,12 +9,9 @@ pub fn get_relative_path(base_path: &str, path: &str) -> eyre::Result<String> {
     let base_path = Path::new(base_path).canonicalize()?;
     let path = Path::new(path).canonicalize()?;
     let relative_path = path.strip_prefix(&base_path)?;
-    let relative_path = relative_path.to_str().ok_or_else(|| {
-        eyre::eyre!(
-            "Failed to convert path to string: {:?}",
-            relative_path.to_str()
-        )
-    })?;
+    let relative_path = relative_path
+        .to_str()
+        .ok_or_else(|| eyre::eyre!("Failed to convert path to string: {:?}", relative_path))?;
 
     if relative_path.is_empty() {
         return Ok(String::from("."));
