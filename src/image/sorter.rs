@@ -41,7 +41,9 @@ impl ImageSorter {
                         (Some(a_modified), Some(b_modified)) => {
                             sort_by_updated_at(*a_modified, *b_modified, config.descending)
                         }
-                        _ => natural_sort(
+                        (Some(_), None) => Ordering::Less,
+                        (None, Some(_)) => Ordering::Greater,
+                        (None, None) => natural_sort(
                             a.image_path.as_str(),
                             b.image_path.as_str(),
                             config.descending,
