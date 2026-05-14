@@ -5,7 +5,7 @@ use crate::{
 pub struct DirectorySection {
     title: String,
     image_count: usize,
-    index: usize,
+    directory_path: String,
 }
 
 impl DirectorySection {
@@ -24,8 +24,7 @@ impl DirectorySection {
 
         entries
             .iter()
-            .enumerate()
-            .map(|(index, entry)| {
+            .map(|entry| {
                 Ok(DirectorySection {
                     title: format!(
                         "{} | {} entries",
@@ -33,7 +32,7 @@ impl DirectorySection {
                         entry.image_entries.len()
                     ),
                     image_count: entry.image_entries.len(),
-                    index,
+                    directory_path: entry.dir_path.clone(),
                 })
             })
             .collect()
@@ -47,7 +46,7 @@ impl DirectorySection {
         self.image_count
     }
 
-    pub fn index(&self) -> usize {
-        self.index
+    pub fn directory_path(&self) -> String {
+        self.directory_path.clone()
     }
 }

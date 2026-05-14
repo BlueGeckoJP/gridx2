@@ -34,7 +34,7 @@ pub fn create_blank_accordion_widget(
     vbox: &gtk::Box,
     image_count: usize,
     title: &str,
-    index: usize,
+    directory_path: String,
     session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
@@ -51,7 +51,7 @@ pub fn create_blank_accordion_widget(
     vbox.append(&accordion_widget.borrow().widget);
 
     setup_accordion_expand_handler(
-        index,
+        directory_path,
         image_count,
         accordion_widget,
         session,
@@ -63,7 +63,7 @@ pub fn create_blank_accordion_widget(
 }
 
 fn setup_accordion_expand_handler(
-    index: usize,
+    directory_path: String,
     image_count: usize,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
     session: Session,
@@ -97,10 +97,15 @@ fn setup_accordion_expand_handler(
                 );
 
                 let dir_entry = match session.dir_entries() {
-                    Ok(entries) => match entries.get(index) {
+                    Ok(entries) => match entries
+                        .iter()
+                        .find(|entry| entry.dir_path == directory_path)
+                    {
                         Some(entry) => entry.clone(),
                         None => {
-                            eprintln!("No directory entry found for index {index}");
+                            eprintln!(
+                                "No directory entry found for directory path {directory_path}"
+                            );
                             return;
                         }
                     },
@@ -194,7 +199,7 @@ fn render_directory_sections(
             vbox,
             section.image_count(),
             section.title(),
-            section.index(),
+            section.directory_path(),
             session.clone(),
             app_config.clone(),
             image_cache.clone(),
