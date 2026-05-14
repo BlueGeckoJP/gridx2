@@ -37,8 +37,9 @@ impl DirectoryBrowser {
         let mut entries = DirEntry::search(&original_dir, max_depth)?;
         entries.sort_by(|a, b| a.dir_path.cmp(&b.dir_path));
 
-        self.session.replace_dir_entries(entries.clone())?;
+        let sections = DirectorySection::from_entries(&original_dir, &entries)?;
+        self.session.replace_dir_entries(entries)?;
 
-        DirectorySection::from_entries(&original_dir, &entries)
+        Ok(sections)
     }
 }
