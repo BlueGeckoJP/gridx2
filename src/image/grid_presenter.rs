@@ -42,10 +42,26 @@ impl ImageGridPresenter {
 
             let image_path = image_entry.image_path;
             let app_config = self.app_config.clone();
+            let widget_for_copy_image = image_widget.widget().clone();
+            let widget_for_copy_image_path = image_widget.widget().clone();
+            let open_image_path = image_path.clone();
+            let copy_image_path = image_path.clone();
+            let copy_image_path_text = image_path.clone();
 
             image_widget.connect_clicked(move || {
-                if let Err(e) = crate::image::actions::open_image(&app_config, &image_path) {
+                if let Err(e) = crate::image::actions::open_image(&app_config, &open_image_path) {
                     eprintln!("Failed to open image: {e}");
+                }
+            });
+            image_widget.connect_copy_image_requested(move || {
+                crate::image::actions::copy_image(&widget_for_copy_image, &copy_image_path);
+            });
+            image_widget.connect_copy_image_path_requested(move || {
+                if let Err(e) = crate::image::actions::copy_image_path(
+                    &widget_for_copy_image_path,
+                    &copy_image_path_text,
+                ) {
+                    eprintln!("Failed to copy image path: {e}");
                 }
             });
 

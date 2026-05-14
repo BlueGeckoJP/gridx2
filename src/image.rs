@@ -2,6 +2,7 @@
 
 pub mod actions;
 pub mod cache;
+pub mod clipboard;
 pub mod entry;
 pub mod external_opener;
 pub mod grid_presenter;
