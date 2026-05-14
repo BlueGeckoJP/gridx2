@@ -1,17 +1,30 @@
-use crate::AppState;
-use crate::state::app_config::SORT_ORDER_VARIANTS;
+//! The responsibility: build the settings dialog and emit saved configuration values.
+
+use crate::{
+    config::raw_config::{RawConfig, SORT_ORDER_VARIANTS},
+    config::settings_form_state::SettingsFormState,
+};
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
-use std::sync::Arc;
 
+/// Modal GTK window for editing application settings.
+///
+/// This type owns the form widgets and delegates conversion to `SettingsFormState` when saving.
 pub struct SettingsWindow {
     window: ApplicationWindow,
 }
 
 impl SettingsWindow {
-    pub fn new(parent: &ApplicationWindow, app_state: Arc<AppState>) -> eyre::Result<Self> {
+    /// Creates a settings dialog prefilled from the current configuration.
+    ///
+    /// `on_save` is called with the converted `RawConfig` when the user presses Save.
+    pub fn new<F: Fn(RawConfig) + 'static>(
+        parent: &ApplicationWindow,
+        current_config: RawConfig,
+        on_save: F,
+    ) -> eyre::Result<Self> {
         let window = ApplicationWindow::builder()
             .title("Settings")
             .default_width(300)
@@ -98,26 +111,17 @@ impl SettingsWindow {
         button_box.append(&button_cancel);
         vbox.append(&button_box);
 
-        let current_config = {
-            let config = app_state.shared.config()?;
-            config.clone()
-        };
         max_depth_spin.set_value(current_config.max_depth as f64);
         thumbnail_spin.set_value(current_config.thumbnail_size as f64);
         command_entry.set_text(&current_config.open_command.join(" "));
-        sort_order_dropdown.set_selected(
-            current_config
-                .sort_order
-                .and_then(|order| {
-                    let order_str = order.to_string();
-                    SORT_ORDER_VARIANTS
-                        .iter()
-                        .position(|&variant| variant == order_str)
-                        .map(|pos| pos as u32)
-                })
-                .unwrap_or(0),
-        );
-        descending_switch.set_active(current_config.descending.unwrap_or(false));
+        sort_order_dropdown.set_selected({
+            let order_str = current_config.sort_order.to_string();
+            SORT_ORDER_VARIANTS
+                .iter()
+                .position(|&variant| variant == order_str)
+                .unwrap_or(0) as u32
+        });
+        descending_switch.set_active(current_config.descending);
 
         button_cancel.connect_clicked(glib::clone!(
             #[weak]
@@ -128,47 +132,26 @@ impl SettingsWindow {
         button_save.connect_clicked(glib::clone!(
             #[weak]
             window,
-            #[weak]
-            max_depth_spin,
-            #[weak]
-            thumbnail_spin,
-            #[weak]
-            command_entry,
-            #[weak]
-            sort_order_dropdown,
-            #[weak]
-            descending_switch,
-            #[strong]
-            app_state,
             move |_| {
-                let result = app_state.shared.update_config(|config| {
-                    config.max_depth = max_depth_spin.value() as u32;
-                    config.thumbnail_size = thumbnail_spin.value() as u32;
-                    config.open_command = command_entry
-                        .text()
-                        .split_whitespace()
-                        .map(|s| s.to_string())
-                        .collect();
-                    config.sort_order = sort_order_dropdown.selected_item().and_then(|item| {
+                let sort_order = sort_order_dropdown
+                    .selected_item()
+                    .and_then(|item| {
                         item.downcast_ref::<gtk::StringObject>()
                             .and_then(|s| s.string().parse().ok())
-                    });
-                    config.descending = Some(descending_switch.is_active());
+                    })
+                    .unwrap_or(current_config.sort_order.clone());
 
-                    config.clone()
-                });
+                let config = SettingsFormState::new(
+                    max_depth_spin.value() as u32,
+                    thumbnail_spin.value() as u32,
+                    command_entry.text().to_string(),
+                    sort_order,
+                    descending_switch.is_active(),
+                    current_config.dark_mode,
+                )
+                .into_raw_config();
 
-                match result {
-                    Ok(config) => {
-                        config.save().unwrap_or_else(|e| {
-                            eprintln!("Failed to save config: {e}");
-                        });
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to update config: {e}");
-                        return;
-                    }
-                }
+                on_save(config);
 
                 window.close();
             }
@@ -177,6 +160,7 @@ impl SettingsWindow {
         Ok(Self { window })
     }
 
+    /// Presents the settings window to the user.
     pub fn show(&self) {
         self.window.present();
     }

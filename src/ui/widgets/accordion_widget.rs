@@ -1,12 +1,14 @@
+//! The responsibility: provide a collapsible directory section widget.
+
 use std::rc::Rc;
-use std::sync::Arc;
 
 use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
 use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
-use crate::state::app_state::AppState;
-
+/// Accordion widget containing a progress bar, an expander, and a flow box for thumbnails.
+///
+/// Use this as the main per-directory container in the image grid UI.
 pub struct AccordionWidget {
     pub widget: gtk::Box,
     pub expander: Expander,
@@ -16,7 +18,8 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
-    pub fn new(title: &str, app_state: Arc<AppState>) -> eyre::Result<Self> {
+    /// Creates a new accordion with styling based on the active theme mode.
+    pub fn new(title: &str, dark_mode: bool) -> eyre::Result<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
 
@@ -25,8 +28,7 @@ impl AccordionWidget {
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
         vbox.add_css_class("expander-box");
 
-        let config = app_state.shared.config()?;
-        match config.dark_mode.unwrap_or(true) {
+        match dark_mode {
             true => vbox.add_css_class("dark-mode"),
             false => vbox.add_css_class("light-mode"),
         }
@@ -58,6 +60,9 @@ impl AccordionWidget {
         })
     }
 
+    /// Calls `callback` whenever the expander state changes.
+    ///
+    /// The close button visibility is kept in sync with the expanded state here.
     pub fn connect_expanded<F: Fn(bool) + 'static>(&self, callback: F) {
         let close_button = self.close_button.clone();
         self.expander
@@ -68,6 +73,7 @@ impl AccordionWidget {
             });
     }
 
+    /// Creates the flow box that will receive thumbnail overlays.
     fn create_flow_box() -> FlowBox {
         let flow_box = FlowBox::new();
 
@@ -83,6 +89,7 @@ impl AccordionWidget {
         flow_box
     }
 
+    /// Creates the expander header with the section title label.
     fn create_expander(title: &str) -> Expander {
         let expander = Expander::new(None);
 
