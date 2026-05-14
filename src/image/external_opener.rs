@@ -32,9 +32,13 @@ impl ExternalOpener {
             }
             None => {
                 let app_config = RawConfig::default();
-                let first_arg = app_config.open_command[0].clone();
+                let mut open_command = app_config.open_command;
+                if let Some(index) = open_command.iter().position(|x| x == "<path>") {
+                    open_command[index] = image_path.to_string();
+                }
+                let first_arg = open_command[0].clone();
                 let mut cmd = Command::new(&first_arg);
-                cmd.args(&app_config.open_command[1..]);
+                cmd.args(&open_command[1..]);
                 cmd
             }
         };
