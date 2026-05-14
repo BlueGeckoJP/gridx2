@@ -1,25 +1,31 @@
-use crate::image_entry::ImageEntry;
-use std::path;
-use std::path::Path;
+//! The responsibility: scan directories and build image-only directory entries.
+
+use std::path::{self, Path};
+
 use walkdir::WalkDir;
 
-#[derive(Debug, Clone)]
-pub struct DirEntry {
-    pub dir_path: String,
-    pub image_entries: Vec<ImageEntry>,
+use crate::{directory::entry::DirEntry, image::entry::ImageEntry};
+
+/// Scans a root directory up to a configured depth and groups image paths by parent directory.
+///
+/// Use this from application/domain code that needs filesystem discovery without taking on UI or
+/// session state responsibilities. It intentionally returns plain `DirEntry` data only.
+pub struct DirectoryScanner {
+    max_depth: u32,
 }
 
-impl DirEntry {
-    fn new(dir_path: String) -> Self {
-        Self {
-            dir_path,
-            image_entries: Vec::new(),
-        }
+impl DirectoryScanner {
+    /// Creates a scanner whose depth is relative to the selected root directory.
+    pub fn new(max_depth: u32) -> Self {
+        Self { max_depth }
     }
 
-    pub fn search(root: &str, max_depth: u32) -> eyre::Result<Vec<DirEntry>> {
+    /// Walks the filesystem and returns non-empty image directories.
+    ///
+    /// Non-readable walk entries are skipped, matching the previous tolerant behavior.
+    pub fn scan(&self, root: &str) -> eyre::Result<Vec<DirEntry>> {
         let mut entries: Vec<DirEntry> = Vec::new();
-        let max_depth = count_depth(to_absolute(root)?) + max_depth;
+        let max_depth = count_depth(to_absolute(root)?) + self.max_depth;
 
         let walker = WalkDir::new(root).into_iter();
 
@@ -62,7 +68,6 @@ impl DirEntry {
 
             entries[dir_entries_index].image_entries.push(ImageEntry {
                 image_path: entry.path().to_string_lossy().into_owned(),
-                image: None,
             });
         }
 
@@ -72,6 +77,7 @@ impl DirEntry {
     }
 }
 
+/// Counts path separators as a lightweight depth metric for walk filtering.
 fn count_depth<T: ToString>(path: T) -> u32 {
     path.to_string()
         .chars()
@@ -79,10 +85,12 @@ fn count_depth<T: ToString>(path: T) -> u32 {
         .count() as u32
 }
 
+/// Converts a path to an absolute string for depth comparisons.
 fn to_absolute<T: AsRef<Path>>(path: T) -> eyre::Result<String> {
     Ok(path::absolute(path)?.to_string_lossy().into_owned())
 }
 
+/// Returns true when the path extension is supported by the image decoder.
 fn is_image<T: AsRef<Path>>(path: T) -> bool {
     let supported_extensions: [&str; 20] = [
         "avif", "bmp", "dds", "ff", "gif", "hdr", "ico", "jpg", "jpeg", "jfif", "exr", "png",

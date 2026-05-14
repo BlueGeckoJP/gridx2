@@ -1,3 +1,5 @@
+//! The responsibility: build the main application window and expose its high-level actions.
+
 use gtk4::{
     Application, ApplicationWindow, Button, HeaderBar, Label,
     gio::{self, prelude::ActionMapExt},
@@ -5,6 +7,9 @@ use gtk4::{
     prelude::{ActionableExt, ButtonExt, GtkWindowExt},
 };
 
+/// Main GTK application window and its primary content container.
+///
+/// This type owns the shell widgets and exposes action hooks without knowing what those actions do.
 pub struct MainWindow {
     app: Application,
     window: gtk4::ApplicationWindow,
@@ -12,6 +17,7 @@ pub struct MainWindow {
 }
 
 impl MainWindow {
+    /// Creates and presents the main window with open/settings controls and a scrollable content area.
     pub fn new(app: &Application) -> Self {
         let window = ApplicationWindow::builder()
             .application(app)
@@ -56,6 +62,9 @@ impl MainWindow {
         }
     }
 
+    /// Registers the callback invoked by the window's open action.
+    ///
+    /// The callback receives the GTK window for dialog parenting and the content container to refresh.
     pub fn set_open_callback<F: Fn(&ApplicationWindow, &gtk4::Box) + 'static>(&self, callback: F) {
         let window = self.window.clone();
         let container = self.container.clone();
@@ -74,6 +83,7 @@ impl MainWindow {
         self.app.add_action(&open_action);
     }
 
+    /// Registers the callback invoked by the window's settings action.
     pub fn set_settings_callback<F: Fn(&ApplicationWindow) + 'static>(&self, callback: F) {
         let window = self.window.clone();
 

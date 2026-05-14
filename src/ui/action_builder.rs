@@ -1,3 +1,5 @@
+//! The responsibility: connect main window GTK actions to application use cases.
+
 use gtk4::{
     FileDialog,
     gio::{Cancellable, prelude::FileExt},
@@ -6,12 +8,16 @@ use gtk4::{
 
 use crate::{
     config::app_config::AppConfig,
-    image_cache::ImageCache,
+    directory::browser::DirectoryBrowser,
+    image::cache::ImageCache,
     session::Session,
-    ui::{main_window::MainWindow, settings_window::SettingsWindow},
-    ui_builder::update_entry,
+    ui::{builder::update_entry, main_window::MainWindow, settings_window::SettingsWindow},
 };
 
+/// Connects the main window actions to folder selection, UI refresh, and settings persistence.
+///
+/// This keeps GTK action wiring in the UI layer while delegating directory and config behavior to
+/// their respective application services.
 pub fn setup_main_window_callbacks(
     main_window: &MainWindow,
     session: Session,
@@ -43,7 +49,9 @@ pub fn setup_main_window_callbacks(
                 }
             };
 
-            if let Err(e) = session.set_original_dir(path) {
+            if let Err(e) =
+                DirectoryBrowser::new(session.clone(), app_config.clone()).select_directory(path)
+            {
                 eprintln!("Failed to set original_dir: {e}");
                 return;
             }

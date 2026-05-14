@@ -1,14 +1,25 @@
-use crate::config::raw_config::{RawConfig, SORT_ORDER_VARIANTS};
+//! The responsibility: build the settings dialog and emit saved configuration values.
+
+use crate::{
+    config::raw_config::{RawConfig, SORT_ORDER_VARIANTS},
+    config::settings_form_state::SettingsFormState,
+};
 use gtk4::glib::object::Cast;
 use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
 
+/// Modal GTK window for editing application settings.
+///
+/// This type owns the form widgets and delegates conversion to `SettingsFormState` when saving.
 pub struct SettingsWindow {
     window: ApplicationWindow,
 }
 
 impl SettingsWindow {
+    /// Creates a settings dialog prefilled from the current configuration.
+    ///
+    /// `on_save` is called with the converted `RawConfig` when the user presses Save.
     pub fn new<F: Fn(RawConfig) + 'static>(
         parent: &ApplicationWindow,
         current_config: RawConfig,
@@ -122,24 +133,23 @@ impl SettingsWindow {
             #[weak]
             window,
             move |_| {
-                let config = RawConfig {
-                    max_depth: max_depth_spin.value() as u32,
-                    thumbnail_size: thumbnail_spin.value() as u32,
-                    open_command: command_entry
-                        .text()
-                        .split_whitespace()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    sort_order: sort_order_dropdown
-                        .selected_item()
-                        .and_then(|item| {
-                            item.downcast_ref::<gtk::StringObject>()
-                                .and_then(|s| s.string().parse().ok())
-                        })
-                        .unwrap_or(current_config.sort_order.clone()),
-                    descending: descending_switch.is_active(),
-                    dark_mode: current_config.dark_mode,
-                };
+                let sort_order = sort_order_dropdown
+                    .selected_item()
+                    .and_then(|item| {
+                        item.downcast_ref::<gtk::StringObject>()
+                            .and_then(|s| s.string().parse().ok())
+                    })
+                    .unwrap_or(current_config.sort_order.clone());
+
+                let config = SettingsFormState::new(
+                    max_depth_spin.value() as u32,
+                    thumbnail_spin.value() as u32,
+                    command_entry.text().to_string(),
+                    sort_order,
+                    descending_switch.is_active(),
+                    current_config.dark_mode,
+                )
+                .into_raw_config();
 
                 on_save(config);
 
@@ -150,6 +160,7 @@ impl SettingsWindow {
         Ok(Self { window })
     }
 
+    /// Presents the settings window to the user.
     pub fn show(&self) {
         self.window.present();
     }

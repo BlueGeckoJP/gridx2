@@ -1,18 +1,24 @@
+//! The responsibility: build and refresh the main GTK interface.
+
 use gtk4::prelude::{BoxExt, WidgetExt};
 use gtk4::{self as gtk, CssProvider, glib};
 use gtk4::{Application, gdk};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::action_builder::setup_main_window_callbacks;
 use crate::config::app_config::AppConfig;
-use crate::directory_section::DirectorySection;
-use crate::image_cache::ImageCache;
-use crate::image_loader::load_and_display_images;
+use crate::directory::browser::DirectoryBrowser;
+use crate::directory::section::DirectorySection;
+use crate::image::cache::ImageCache;
+use crate::image::loader::load_and_display_images;
 use crate::session::Session;
+use crate::ui::action_builder::setup_main_window_callbacks;
 use crate::ui::main_window::MainWindow;
 use crate::ui::widgets::accordion_widget::AccordionWidget;
 
+/// Builds the top-level UI and connects its callbacks.
+///
+/// Use this from `Application::connect_activate`; it owns the first render of the GTK shell.
 pub fn build_ui(
     app: &Application,
     app_config: AppConfig,
@@ -30,6 +36,10 @@ pub fn build_ui(
     );
 }
 
+/// Creates an accordion placeholder for one directory section.
+///
+/// Thumbnails are loaded lazily by the expand handler so initial rendering does not decode every
+/// image in every directory.
 pub fn create_blank_accordion_widget(
     vbox: &gtk::Box,
     image_count: usize,
@@ -62,6 +72,10 @@ pub fn create_blank_accordion_widget(
     Ok(())
 }
 
+/// Wires lazy thumbnail loading to a single accordion expansion event.
+///
+/// This resolves the backing directory entry from session state, resets the visible grid, and starts
+/// image loading when the section is expanded.
 fn setup_accordion_expand_handler(
     directory_path: String,
     image_count: usize,
@@ -129,6 +143,9 @@ fn setup_accordion_expand_handler(
         });
 }
 
+/// Clears and prepares thumbnail overlay slots before a directory is loaded.
+///
+/// The prepared overlays are populated later by the image grid presenter.
 fn reset_accordion_view(
     accordion_widget: &Rc<RefCell<AccordionWidget>>,
     overlays: &mut Vec<gtk::Overlay>,
@@ -158,6 +175,7 @@ fn reset_accordion_view(
     accordion_widget.progress_bar.set_visible(true);
 }
 
+/// Registers the application CSS for the current GTK display.
 fn load_css() {
     let provider = CssProvider::new();
     provider.load_from_data(include_str!("style.css"));
@@ -169,22 +187,27 @@ fn load_css() {
     );
 }
 
+/// Reloads directory sections for the current session and renders them into the main container.
+///
+/// Use this after selecting a directory or changing settings that affect directory discovery.
 pub fn update_entry(
     session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
     vbox: gtk::Box,
 ) -> eyre::Result<()> {
-    let sections = DirectorySection::load_sections(session.clone(), app_config.clone())?;
+    let sections = DirectoryBrowser::new(session.clone(), app_config.clone()).load_sections()?;
     render_directory_sections(&vbox, &sections, session, app_config, image_cache)
 }
 
+/// Removes all currently rendered directory sections from the main container.
 fn clear_ui(vbox: &gtk::Box) {
     while let Some(child) = vbox.first_child() {
         vbox.remove(&child);
     }
 }
 
+/// Renders section view models as lazy-loading accordion widgets.
 fn render_directory_sections(
     vbox: &gtk::Box,
     sections: &[DirectorySection],

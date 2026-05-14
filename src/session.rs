@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::entry::DirEntry;
+use crate::directory::entry::DirEntry;
 
 #[derive(Default)]
 struct SessionData {

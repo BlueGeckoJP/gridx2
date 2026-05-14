@@ -1,9 +1,14 @@
+//! The responsibility: provide a collapsible directory section widget.
+
 use std::rc::Rc;
 
 use gtk4::prelude::{BoxExt, ButtonExt, ObjectExt, WidgetExt};
 use gtk4::{self as gtk, glib};
 use gtk4::{Expander, FlowBox, Label, ProgressBar};
 
+/// Accordion widget containing a progress bar, an expander, and a flow box for thumbnails.
+///
+/// Use this as the main per-directory container in the image grid UI.
 pub struct AccordionWidget {
     pub widget: gtk::Box,
     pub expander: Expander,
@@ -13,6 +18,7 @@ pub struct AccordionWidget {
 }
 
 impl AccordionWidget {
+    /// Creates a new accordion with styling based on the active theme mode.
     pub fn new(title: &str, dark_mode: bool) -> eyre::Result<Self> {
         let expander = Self::create_expander(title);
         let flow_box = Self::create_flow_box();
@@ -54,6 +60,9 @@ impl AccordionWidget {
         })
     }
 
+    /// Calls `callback` whenever the expander state changes.
+    ///
+    /// The close button visibility is kept in sync with the expanded state here.
     pub fn connect_expanded<F: Fn(bool) + 'static>(&self, callback: F) {
         let close_button = self.close_button.clone();
         self.expander
@@ -64,6 +73,7 @@ impl AccordionWidget {
             });
     }
 
+    /// Creates the flow box that will receive thumbnail overlays.
     fn create_flow_box() -> FlowBox {
         let flow_box = FlowBox::new();
 
@@ -79,6 +89,7 @@ impl AccordionWidget {
         flow_box
     }
 
+    /// Creates the expander header with the section title label.
     fn create_expander(title: &str) -> Expander {
         let expander = Expander::new(None);
 
