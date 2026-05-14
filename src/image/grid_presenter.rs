@@ -6,7 +6,7 @@ use gtk4::{self as gtk, glib, prelude::WidgetExt};
 
 use crate::{
     config::app_config::AppConfig,
-    image::thumbnail_loader::LoadedImage,
+    image::loader::PresentableImage,
     ui::widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
 };
 
@@ -34,7 +34,7 @@ impl ImageGridPresenter {
     }
 
     /// Adds the loaded image widgets to the flow box in small batches to keep the UI responsive.
-    pub async fn display(self, image_entries: Vec<LoadedImage>) {
+    pub async fn display(self, image_entries: Vec<PresentableImage>) {
         for (index, image_entry) in image_entries.iter().enumerate() {
             let image_widget = ImageWidget::new();
             image_widget.set_image(&image_entry.texture);

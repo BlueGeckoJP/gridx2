@@ -1,4 +1,4 @@
-//! The responsibility: load, resize, cache, and report progress for thumbnail textures.
+//! The responsibility: load, resize, cache, and report progress for decoded thumbnails.
 
 use std::{
     sync::{
@@ -10,22 +10,26 @@ use std::{
     time::Instant,
 };
 
-use gtk4::gdk::Texture;
-use gtk4::prelude::Cast;
-use gtk4::{gdk, glib};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{directory::entry::DirEntry, image::cache::ImageCache, image::entry::ImageEntry};
 
-/// A thumbnail that has been decoded and converted into a GTK texture for presentation.
-///
-/// This is the boundary object between background thumbnail loading and UI rendering.
+/// A decoded thumbnail buffer ready to be wrapped in a GTK texture on the main context.
+#[derive(Clone)]
+pub struct DecodedThumbnail {
+    pub width: i32,
+    pub height: i32,
+    pub stride: usize,
+    pub pixels: Vec<u8>,
+}
+
+/// A thumbnail that has been decoded for presentation without constructing GTK objects off-thread.
 #[derive(Clone)]
 pub struct LoadedImage {
     pub image_path: String,
-    pub texture: Arc<Texture>,
+    pub thumbnail: Arc<DecodedThumbnail>,
 }
 
 /// Progress messages emitted by the thumbnail loading worker.
@@ -159,7 +163,7 @@ fn load_thumbnail(
         metrics.cache_hits.fetch_add(1, Ordering::Relaxed);
         return Ok(LoadedImage {
             image_path: image_entry.image_path.clone(),
-            texture,
+            thumbnail: texture,
         });
     }
 
@@ -183,29 +187,26 @@ fn load_thumbnail(
 
     Ok(LoadedImage {
         image_path: image_entry.image_path.clone(),
-        texture,
+        thumbnail: texture,
     })
 }
 
-/// Decodes an image file, resizes it to fit the thumbnail box, and creates a GTK texture.
-fn load_and_resize_image(path: &str, thumbnail_size: u32) -> eyre::Result<Texture> {
+/// Decodes an image file, resizes it to fit the thumbnail box, and returns RGBA pixels.
+fn load_and_resize_image(path: &str, thumbnail_size: u32) -> eyre::Result<DecodedThumbnail> {
     let img = ImageReader::open(path)?.decode()?;
     let (width, height) = img.dimensions();
     let (rw, rh) = calculate_size(width, height, thumbnail_size);
     let resized = img.resize(rw, rh, FilterType::Triangle);
     let rgba = resized.to_rgba8();
     let (width, height) = rgba.dimensions();
+    let stride = (4 * width) as usize;
 
-    let texture = gdk::MemoryTexture::new(
-        width as i32,
-        height as i32,
-        gdk::MemoryFormat::R8g8b8a8,
-        &glib::Bytes::from(&rgba.into_raw()),
-        (4 * width) as usize,
-    )
-    .upcast::<Texture>();
-
-    Ok(texture)
+    Ok(DecodedThumbnail {
+        width: width as i32,
+        height: height as i32,
+        stride,
+        pixels: rgba.into_raw(),
+    })
 }
 
 /// Calculates a proportional size that fits within a square thumbnail target.

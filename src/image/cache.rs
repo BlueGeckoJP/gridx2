@@ -1,17 +1,18 @@
-//! The responsibility: cache GTK image textures by path and thumbnail size.
+//! The responsibility: cache decoded thumbnail pixel buffers by path and thumbnail size.
 
 use std::{
     num::NonZeroUsize,
     sync::{Arc, Mutex},
 };
 
-use gtk4::gdk::Texture;
 use lru::LruCache;
 
-type CacheKey = (String, (usize, usize)); // (image_path, (width, height))
-type CacheValue = Arc<Texture>;
+use crate::image::thumbnail_loader::DecodedThumbnail;
 
-/// Shared LRU cache for decoded thumbnail textures.
+type CacheKey = (String, (usize, usize)); // (image_path, (width, height))
+type CacheValue = Arc<DecodedThumbnail>;
+
+/// Shared LRU cache for decoded thumbnail buffers.
 ///
 /// Use this when thumbnail loading needs to avoid re-decoding the same image at the same size.
 /// The cache is internally synchronized so background loaders can clone and share it.
@@ -21,7 +22,7 @@ pub struct ImageCache {
 }
 
 impl ImageCache {
-    /// Creates a cache with the maximum number of texture entries to retain.
+    /// Creates a cache with the maximum number of thumbnail entries to retain.
     pub fn new(capacity: usize) -> Self {
         Self {
             inner: Arc::new(Mutex::new(LruCache::new(
@@ -30,8 +31,12 @@ impl ImageCache {
         }
     }
 
-    /// Looks up a cached texture by image path and requested thumbnail size.
-    pub fn get(&self, path: String, size: (usize, usize)) -> eyre::Result<Option<Arc<Texture>>> {
+    /// Looks up a cached thumbnail by image path and requested thumbnail size.
+    pub fn get(
+        &self,
+        path: String,
+        size: (usize, usize),
+    ) -> eyre::Result<Option<Arc<DecodedThumbnail>>> {
         let mut cache = self
             .inner
             .lock()
@@ -39,18 +44,18 @@ impl ImageCache {
         Ok(cache.get(&(path, size)).cloned())
     }
 
-    /// Stores a decoded texture for later reuse by the thumbnail loader.
+    /// Stores a decoded thumbnail for later reuse by the thumbnail loader.
     pub fn put(
         &self,
         path: String,
         size: (usize, usize),
-        texture: Arc<Texture>,
+        thumbnail: Arc<DecodedThumbnail>,
     ) -> eyre::Result<()> {
         let mut cache = self
             .inner
             .lock()
             .map_err(|e| eyre::eyre!("Failed to lock image cache: {e}"))?;
-        cache.put((path, size), texture);
+        cache.put((path, size), thumbnail);
         Ok(())
     }
 }

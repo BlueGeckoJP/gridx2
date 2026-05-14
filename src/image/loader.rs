@@ -1,12 +1,17 @@
 //! The responsibility: orchestrate thumbnail loading, progress updates, sorting, and presentation.
 
+use std::sync::Arc;
+
 use gtk4::{self as gtk, glib, prelude::WidgetExt};
 use std::{
     cell::RefCell,
     rc::Rc,
-    sync::{Arc, mpsc},
+    sync::mpsc,
     time::Duration,
 };
+
+use gtk4::gdk::Texture;
+use gtk4::prelude::Cast;
 
 use crate::{
     config::app_config::AppConfig,
@@ -15,10 +20,16 @@ use crate::{
         cache::ImageCache,
         grid_presenter::ImageGridPresenter,
         sorter::ImageSorter,
-        thumbnail_loader::{ThumbnailLoadMessage, ThumbnailLoader},
+        thumbnail_loader::{DecodedThumbnail, LoadedImage, ThumbnailLoadMessage, ThumbnailLoader},
     },
     ui::widgets::accordion_widget::AccordionWidget,
 };
+
+/// A UI-ready thumbnail whose GTK texture was constructed on the main context.
+pub struct PresentableImage {
+    pub image_path: String,
+    pub texture: Texture,
+}
 
 /// Loads thumbnails for one directory and displays the finished grid in its accordion.
 ///
@@ -86,7 +97,30 @@ async fn handle_load_messages(
     };
 
     let image_entries = ImageSorter::sort(image_entries, &config);
+    let image_entries = present_images(image_entries);
     ImageGridPresenter::new(accordion_widget, overlays, app_config)
         .display(image_entries)
         .await;
+}
+
+/// Converts decoded thumbnail buffers into GTK textures on the main context.
+fn present_images(image_entries: Vec<LoadedImage>) -> Vec<PresentableImage> {
+    image_entries
+        .into_iter()
+        .map(|image_entry| PresentableImage {
+            image_path: image_entry.image_path,
+            texture: decoded_thumbnail_to_texture(&image_entry.thumbnail),
+        })
+        .collect()
+}
+
+fn decoded_thumbnail_to_texture(thumbnail: &Arc<DecodedThumbnail>) -> Texture {
+    gtk::gdk::MemoryTexture::new(
+        thumbnail.width,
+        thumbnail.height,
+        gtk::gdk::MemoryFormat::R8g8b8a8,
+        &glib::Bytes::from(&thumbnail.pixels),
+        thumbnail.stride,
+    )
+    .upcast::<Texture>()
 }
