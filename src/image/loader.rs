@@ -67,7 +67,7 @@ async fn handle_load_messages(
             Err(mpsc::TryRecvError::Disconnected) => {
                 eprintln!("Image loading channel disconnected before completion");
                 accordion_widget.borrow().progress_bar.set_visible(false);
-                glib::timeout_future(Duration::from_millis(16)).await;
+                return;
             }
         }
     };
