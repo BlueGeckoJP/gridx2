@@ -24,7 +24,7 @@ impl ExternalOpener {
 
         let mut cmd = match index {
             Some(index) => {
-                self.open_command[index] = image_path.to_string();
+                self.open_command[index] = format!("\"{}\"", image_path);
                 let first_arg = self.open_command[0].clone();
                 let mut cmd = Command::new(&first_arg);
                 cmd.args(&self.open_command[1..]);
@@ -34,7 +34,7 @@ impl ExternalOpener {
                 let app_config = RawConfig::default();
                 let mut open_command = app_config.open_command;
                 if let Some(index) = open_command.iter().position(|x| x == "<path>") {
-                    open_command[index] = image_path.to_string();
+                    open_command[index] = format!("\"{}\"", image_path);
                 }
                 let first_arg = open_command[0].clone();
                 let mut cmd = Command::new(&first_arg);

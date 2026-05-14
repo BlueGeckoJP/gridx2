@@ -9,6 +9,26 @@ use gtk4::prelude::{BoxExt, ButtonExt, EditableExt, GtkWindowExt, WidgetExt};
 use gtk4::{self as gtk, gio::ListStore};
 use gtk4::{Adjustment, ApplicationWindow, DropDown, SpinButton, glib};
 
+fn has_path_placeholder(text: &str) -> bool {
+    text.split_whitespace().any(|part| part == "<path>")
+}
+
+fn update_open_command_validation(
+    command_entry: &gtk::Entry,
+    error_label: &gtk::Label,
+    button_save: &gtk::Button,
+) {
+    let is_valid = has_path_placeholder(command_entry.text().as_str());
+    button_save.set_sensitive(is_valid);
+    error_label.set_visible(!is_valid);
+
+    if is_valid {
+        command_entry.remove_css_class("error");
+    } else {
+        command_entry.add_css_class("error");
+    }
+}
+
 /// Modal GTK window for editing application settings.
 ///
 /// This type owns the form widgets and delegates conversion to `SettingsFormState` when saving.
@@ -74,6 +94,12 @@ impl SettingsWindow {
         command_box.append(&command_entry);
         vbox.append(&command_box);
 
+        let error_label = gtk::Label::new(Some("Open command must include <path>"));
+        error_label.set_halign(gtk::Align::Start);
+        error_label.add_css_class("error");
+        error_label.set_visible(false);
+        vbox.append(&error_label);
+
         let hint_label = gtk::Label::new(Some("Hint: the actual path is assigned to <path>"));
         hint_label.set_halign(gtk::Align::Start);
         vbox.append(&hint_label);
@@ -122,6 +148,17 @@ impl SettingsWindow {
                 .unwrap_or(0) as u32
         });
         descending_switch.set_active(current_config.descending);
+        update_open_command_validation(&command_entry, &error_label, &button_save);
+
+        command_entry.connect_changed(glib::clone!(
+            #[weak]
+            error_label,
+            #[weak]
+            button_save,
+            move |entry| {
+                update_open_command_validation(entry, &error_label, &button_save);
+            }
+        ));
 
         button_cancel.connect_clicked(glib::clone!(
             #[weak]
