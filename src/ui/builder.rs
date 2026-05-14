@@ -110,19 +110,12 @@ fn setup_accordion_expand_handler(
                     image_count,
                 );
 
-                let dir_entry = match session.dir_entries() {
-                    Ok(entries) => match entries
-                        .iter()
-                        .find(|entry| entry.dir_path == directory_path)
-                    {
-                        Some(entry) => entry.clone(),
-                        None => {
-                            eprintln!(
-                                "No directory entry found for directory path {directory_path}"
-                            );
-                            return;
-                        }
-                    },
+                let dir_entry = match session.find_dir_entry(&directory_path) {
+                    Ok(Some(entry)) => entry,
+                    Ok(None) => {
+                        eprintln!("No directory entry found for directory path {directory_path}");
+                        return;
+                    }
                     Err(e) => {
                         eprintln!("Failed to get directory entries: {e}");
                         return;

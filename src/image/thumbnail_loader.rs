@@ -55,7 +55,7 @@ impl ThumbnailLoader {
     }
 
     /// Starts the load worker and returns the receiving side of the progress channel.
-    pub fn spawn(self, dir_entry: DirEntry) -> mpsc::Receiver<ThumbnailLoadMessage> {
+    pub fn spawn(self, dir_entry: Arc<DirEntry>) -> mpsc::Receiver<ThumbnailLoadMessage> {
         let (tx, rx) = mpsc::channel::<ThumbnailLoadMessage>();
         let total_images = dir_entry.image_entries.len();
         let metrics = ThumbnailLoadMetrics::default();
@@ -66,6 +66,7 @@ impl ThumbnailLoader {
         thread::spawn(move || {
             let loaded_images = dir_entry
                 .image_entries
+                .clone()
                 .into_par_iter()
                 .filter_map(|image_entry| {
                     let result =

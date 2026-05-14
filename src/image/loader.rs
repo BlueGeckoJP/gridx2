@@ -1,7 +1,12 @@
 //! The responsibility: orchestrate thumbnail loading, progress updates, sorting, and presentation.
 
 use gtk4::{self as gtk, glib, prelude::WidgetExt};
-use std::{cell::RefCell, rc::Rc, sync::mpsc, time::Duration};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, mpsc},
+    time::Duration,
+};
 
 use crate::{
     config::app_config::AppConfig,
@@ -20,7 +25,7 @@ use crate::{
 /// This is the UI orchestration boundary: decoding is delegated to `ThumbnailLoader`, ordering to
 /// `ImageSorter`, and GTK rendering to `ImageGridPresenter`.
 pub async fn load_and_display_images(
-    dir_entry: DirEntry,
+    dir_entry: Arc<DirEntry>,
     image_cache: ImageCache,
     app_config: AppConfig,
     accordion_widget: Rc<RefCell<AccordionWidget>>,
