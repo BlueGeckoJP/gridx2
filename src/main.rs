@@ -1,3 +1,4 @@
+mod action_builder;
 mod config;
 mod directory_section;
 mod entry;

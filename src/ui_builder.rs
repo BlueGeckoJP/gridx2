@@ -1,18 +1,16 @@
-use gtk4::gio::Cancellable;
-use gtk4::gio::prelude::FileExt;
 use gtk4::prelude::{BoxExt, WidgetExt};
-use gtk4::{self as gtk, CssProvider, FileDialog, glib};
+use gtk4::{self as gtk, CssProvider, glib};
 use gtk4::{Application, gdk};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::action_builder::setup_main_window_callbacks;
 use crate::config::app_config::AppConfig;
 use crate::directory_section::DirectorySection;
 use crate::image_cache::ImageCache;
 use crate::image_loader::load_and_display_images;
 use crate::session::Session;
 use crate::ui::main_window::MainWindow;
-use crate::ui::settings_window::SettingsWindow;
 use crate::ui::widgets::accordion_widget::AccordionWidget;
 
 pub fn build_ui(
@@ -24,75 +22,12 @@ pub fn build_ui(
     load_css();
 
     let main_window = MainWindow::new(app);
-
-    let app_config_for_open = app_config.clone();
-    main_window.set_open_callback(move |window, container| {
-        let dialog = FileDialog::new();
-        let cancellable = Cancellable::new();
-
-        let session = session.clone();
-        let app_config = app_config_for_open.clone();
-        let image_cache = image_cache.clone();
-        let container = container.clone();
-
-        dialog.select_folder(Some(window), Some(&cancellable), move |result| {
-            let path = match result {
-                Ok(path) => match path.path() {
-                    Some(dir) => dir.to_string_lossy().to_string(),
-                    None => {
-                        eprintln!("No directory selected");
-                        return;
-                    }
-                },
-                Err(e) => {
-                    eprintln!("Failed to open file dialog: {e}");
-                    return;
-                }
-            };
-
-            if let Err(e) = session.set_original_dir(path) {
-                eprintln!("Failed to set original_dir: {e}");
-                return;
-            }
-
-            glib::spawn_future_local(async move {
-                if let Err(e) = update_entry(
-                    session.clone(),
-                    app_config.clone(),
-                    image_cache.clone(),
-                    container.clone(),
-                ) {
-                    eprintln!("Failed to update entry: {e}");
-                }
-            });
-        });
-    });
-
-    main_window.set_settings_callback(move |window| {
-        let config = match app_config.get() {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln!("Failed to get app config: {e}");
-                return;
-            }
-        };
-
-        let app_config = app_config.clone();
-        let settings_window = SettingsWindow::new(window, config, move |config| {
-            if let Err(e) = app_config.update(config) {
-                eprintln!("Failed to save config: {e}");
-            }
-        });
-
-        match settings_window {
-            Ok(settings_window) => {
-                settings_window.show();
-            }
-            Err(e) => {
-                eprintln!("Failed to create settings window: {e}");
-            }
-        }
-    });
+    setup_main_window_callbacks(
+        &main_window,
+        session.clone(),
+        app_config.clone(),
+        image_cache.clone(),
+    );
 }
 
 pub fn create_blank_accordion_widget(
@@ -154,7 +89,7 @@ fn setup_accordion_expand_handler(
                     }
                 };
 
-                prepare_accordion_for_loading(
+                reset_accordion_view(
                     &accordion_widget,
                     &mut overlays,
                     thumbnail_size,
@@ -189,7 +124,7 @@ fn setup_accordion_expand_handler(
         });
 }
 
-fn prepare_accordion_for_loading(
+fn reset_accordion_view(
     accordion_widget: &Rc<RefCell<AccordionWidget>>,
     overlays: &mut Vec<gtk::Overlay>,
     thumbnail_size: i32,
@@ -229,7 +164,7 @@ fn load_css() {
     );
 }
 
-fn update_entry(
+pub fn update_entry(
     session: Session,
     app_config: AppConfig,
     image_cache: ImageCache,
