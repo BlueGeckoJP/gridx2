@@ -2,11 +2,11 @@
 
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
-use gtk4::{self as gtk, glib, prelude::WidgetExt};
+use gtk4::{self as gtk, gdk::Texture, glib, prelude::Cast, prelude::WidgetExt};
 
 use crate::{
     config::app_config::AppConfig,
-    image::loader::PresentableImage,
+    image::thumbnail_loader::{DecodedThumbnail, LoadedImage},
     ui::widgets::{accordion_widget::AccordionWidget, image_widget::ImageWidget},
 };
 
@@ -34,12 +34,13 @@ impl ImageGridPresenter {
     }
 
     /// Adds the loaded image widgets to the flow box in small batches to keep the UI responsive.
-    pub async fn display(self, image_entries: Vec<PresentableImage>) {
-        for (index, image_entry) in image_entries.iter().enumerate() {
+    pub async fn display(self, image_entries: Vec<LoadedImage>) {
+        for (index, image_entry) in image_entries.into_iter().enumerate() {
             let image_widget = ImageWidget::new();
-            image_widget.set_image(&image_entry.texture);
+            let texture = decoded_thumbnail_to_texture(&image_entry.thumbnail);
+            image_widget.set_image(&texture);
 
-            let image_path = image_entry.image_path.clone();
+            let image_path = image_entry.image_path;
             let app_config = self.app_config.clone();
 
             image_widget.connect_clicked(move || {
@@ -68,4 +69,15 @@ impl ImageGridPresenter {
             .progress_bar
             .set_visible(false);
     }
+}
+
+fn decoded_thumbnail_to_texture(thumbnail: &DecodedThumbnail) -> Texture {
+    gtk::gdk::MemoryTexture::new(
+        thumbnail.width,
+        thumbnail.height,
+        gtk::gdk::MemoryFormat::R8g8b8a8,
+        &glib::Bytes::from(&thumbnail.pixels),
+        thumbnail.stride,
+    )
+    .upcast::<Texture>()
 }
