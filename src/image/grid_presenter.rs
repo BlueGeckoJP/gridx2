@@ -49,11 +49,10 @@ impl ImageGridPresenter {
             });
 
             let accordion_widget = self.accordion_widget.clone();
-            let overlays = self.overlays.clone();
+            let overlay = self.overlays.get(index).cloned();
 
             glib::MainContext::default().spawn_local(async move {
-                if index < overlays.len() {
-                    let overlay = overlays[index].clone();
+                if let Some(overlay) = overlay {
                     overlay.add_overlay(image_widget.widget());
                     accordion_widget.borrow().flow_box.append(&overlay);
                 }
