@@ -49,7 +49,7 @@ impl Session {
     }
 
     /// Finds a directory entry by its path and returns a clone wrapped in Arc.
-    /// Arc wraps DirEntry to reduce clone costs. However, this function still needs to clone the matching DirEntry for dir_path, 
+    /// Arc wraps DirEntry to reduce clone costs. However, this function still needs to clone the matching DirEntry for dir_path,
     /// so further optimization would require changing how SessionData::dir_entries stores its data.
     pub fn find_dir_entry(&self, dir_path: &str) -> eyre::Result<Option<Arc<DirEntry>>> {
         let data = self

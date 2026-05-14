@@ -3,12 +3,7 @@
 use std::sync::Arc;
 
 use gtk4::{self as gtk, glib, prelude::WidgetExt};
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::mpsc,
-    time::Duration,
-};
+use std::{cell::RefCell, rc::Rc, sync::mpsc, time::Duration};
 
 use gtk4::gdk::Texture;
 use gtk4::prelude::Cast;
