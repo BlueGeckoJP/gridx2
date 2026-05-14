@@ -17,7 +17,10 @@ impl AppConfig {
                     e
                 );
                 return Self {
-                    inner: Arc::new(RwLock::new(RawConfig::default())),
+                    inner: Arc::new(RwLock::new(RawConfig {
+                        dark_mode,
+                        ..Default::default()
+                    })),
                 };
             }
         };
@@ -31,7 +34,10 @@ impl AppConfig {
                     e
                 );
                 return Self {
-                    inner: Arc::new(RwLock::new(RawConfig::default())),
+                    inner: Arc::new(RwLock::new(RawConfig {
+                        dark_mode,
+                        ..Default::default()
+                    })),
                 };
             }
         };
