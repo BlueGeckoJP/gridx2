@@ -212,12 +212,12 @@ fn load_and_resize_image(path: &str, thumbnail_size: u32) -> eyre::Result<Textur
 fn calculate_size(mut width: u32, mut height: u32, to: u32) -> (u32, u32) {
     match width > height {
         true => {
-            height = (height * to) / width;
+            height = ((height * to) / width).max(1);
             width = to;
             (width, height)
         }
         false => {
-            width = (width * to) / height;
+            width = ((width * to) / height).max(1);
             height = to;
             (width, height)
         }
